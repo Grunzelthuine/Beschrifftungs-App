@@ -20,7 +20,7 @@ button,.btn{font:inherit;border:0;border-radius:8px;padding:9px 13px;background:
 button.sec{background:#e6ebf2;color:var(--txt)}
 button.danger{background:#fde8e8;color:var(--red)}
 button.sm{padding:5px 9px;font-size:13px}
-header.top button{background:rgba(255,255,255,.18)}
+header.top button{background:rgba(255,255,255,.18);white-space:nowrap;padding:9px 10px}
 input,select,textarea{font:inherit;font-size:16px;padding:8px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--txt);min-width:0}
 input[type=checkbox]{width:20px;height:20px;padding:0}
 main{padding:10px;max-width:900px;margin:0 auto}
@@ -73,6 +73,7 @@ label.f{display:flex;flex-direction:column;gap:3px;font-size:13px;color:var(--mu
 <header class="top">
   <select id="projSel" aria-label="Verteiler"></select>
   <button id="btnNew">+ Neu</button>
+  <button id="btnMng" aria-label="Verteiler verwalten">Verwalten</button>
 </header>
 <main>
   <section id="tab-edit" class="tab on"></section>
@@ -419,6 +420,7 @@ const dlg=document.getElementById('dlg'), dlgBody=document.getElementById('dlgBo
 function openDlg(html, init){ dlgBody.innerHTML=html; dlgBody.querySelectorAll('[data-close]').forEach(b=>b.onclick=closeDlg); init&&init(dlgBody); if(!dlg.open) dlg.showModal(); }
 function closeDlg(){ if(dlg.open) dlg.close(); }
 dlg.addEventListener('click',e=>{ if(e.target===dlg) closeDlg(); });
+dlg.addEventListener('close',()=>renderAll());
 
 function dlgTypes(){
   const draw=()=>{
@@ -586,6 +588,24 @@ document.getElementById('btnNew').onclick=()=>{
   d=>{ d.querySelector('#ok').onclick=()=>{ const p=newProject(d.querySelector('#nm').value.trim()||'Neuer Verteiler'); S.projects.push(p); S.cur=p.id; save(); closeDlg(); renderAll(); }; });
 };
 
+function dlgProjects(){
+  const draw=()=>{
+    dlgBody.innerHTML=`<h3>Verteiler verwalten</h3>${S.projects.map((p,i)=>`<div class="card" style="margin-bottom:8px" data-i="${i}">
+      <div class="grid2" style="margin-top:0"><input data-n value="${esc(p.name)}" style="flex:1" aria-label="Name"><button class="sec sm" data-open>${p.id===S.cur?'Aktiv':'Öffnen'}</button></div>
+      <div class="grid2"><span class="muted" style="flex:1">${p.rows.length} Reihe(n), ${p.rows.reduce((a,r)=>a+r.items.length,0)} Bauteile</span><button class="sec sm" data-dup>Duplizieren</button><button class="danger sm" data-del>Löschen</button></div></div>`).join('')}
+      <div class="dlgbtn"><button class="sec" id="new">+ Neuer Verteiler</button><button id="ok">Fertig</button></div>`;
+    dlgBody.querySelectorAll('[data-i]').forEach(el=>{ const i=+el.dataset.i, p=S.projects[i];
+      el.querySelector('[data-n]').onchange=e=>{ p.name=e.target.value.trim()||p.name; save(); refreshProjSel(); };
+      el.querySelector('[data-open]').onclick=()=>{ S.cur=p.id; save(); refreshProjSel(); draw(); };
+      el.querySelector('[data-dup]').onclick=()=>{ const c=clone(p); c.id=uid(); c.name+=' (Kopie)'; c.rows.forEach(r=>{r.id=uid(); r.items.forEach(x=>x.uid=uid());}); S.projects.splice(i+1,0,c); save(); refreshProjSel(); draw(); };
+      el.querySelector('[data-del]').onclick=()=>{ if(!confirm(`Verteiler „${p.name}“ endgültig löschen?`)) return;
+        S.projects.splice(i,1); if(!S.projects.length) S.projects.push(newProject('Verteiler 1')); if(!S.projects.find(x=>x.id===S.cur)) S.cur=S.projects[0].id; save(); refreshProjSel(); draw(); }; });
+    dlgBody.querySelector('#new').onclick=()=>{ const p=newProject('Neuer Verteiler'); S.projects.push(p); S.cur=p.id; save(); refreshProjSel(); draw(); };
+    dlgBody.querySelector('#ok').onclick=()=>{ closeDlg(); renderAll(); };
+  }; draw(); if(!dlg.open) dlg.showModal();
+}
+document.getElementById('btnMng').onclick=dlgProjects;
+
 /* ============================ Vorschau ============================ */
 function renderPrev(){
   const p=P(), comp=compute(p), s=S.settings, el=document.getElementById('tab-prev');
@@ -742,10 +762,10 @@ function lbxLabelXml(cells, bl=BLOCK_PT){
     const lines = c.lines.length?c.lines:[' '];
     const data = lines.join('\n');
     const items=[]; lines.forEach((ln,k)=>{ if(ln.length) items.push({n:ln.length,w:(c.bold&&k===0)?700:400}); if(k<lines.length-1) items.push({n:1,w:(c.bold&&k===0)?700:400}); });
-    return `<table:cell addressX="${i+1}" addressY="1" spanX="1" spanY="1" backColor="#FFFFFF" backPrintColorNumber="0"><text:text><pt:objectStyle x="${r1(5.6+starts[i]+1.7)}pt" y="4.9pt" width="${r1(widths[i]-2.7)}pt" height="41.4pt" backColor="#FFFFFF" backPrintColorNumber="0" ropMode="COPYPEN" angle="0" anchor="TOPLEFT" flip="NONE"><pt:pen style="NULL" widthX="0.5pt" widthY="0.5pt" color="#000000" printColorNumber="1"></pt:pen><pt:brush style="NULL" color="#000000" printColorNumber="1" id="0"></pt:brush><pt:expanded objectName="Text${i+1}" objectID="${hex5()}" ID="0" lock="0" templateMergeTarget="LABELLIST" templateMergeType="NONE" templateMergeID="0" allowOutOfBoundsTransfer="false" linkStatus="NONE" linkID="0"></pt:expanded></pt:objectStyle>${ptFont(400,c.size)}<text:textControl control="FIXEDFRAME" clipFrame="false" aspectNormal="true" shrink="true" autoLF="false" avoidImage="false"></text:textControl><text:textAlign horizontalAlignment="CENTER" verticalAlignment="CENTER" inLineAlignment="BASELINE"></text:textAlign><text:textStyle vertical="false" nullBlock="false" charSpace="0" lineSpace="0" orgPoint="${c.size}pt" combinedChars="false"></text:textStyle><text:transferSettings editOnPrintFormat="" editOnPrintOrder="0"></text:transferSettings><pt:data>${xmlEsc(data)}</pt:data>${items.map(it=>`<text:stringItem charLen="${it.n}">${ptFont(it.w,c.size)}</text:stringItem>`).join('')}</text:text><pt:brush style="NULL" color="#000000" printColorNumber="1" id="0"></pt:brush></table:cell>`;
+    return `<table:cell addressX="${i+1}" addressY="1" spanX="1" spanY="1" backColor="#FFFFFF" backPrintColorNumber="0"><text:text><pt:objectStyle x="${r1(5.6+starts[i]+1.7)}pt" y="4.9pt" width="${r1(widths[i]-2.7)}pt" height="41.4pt" backColor="#FFFFFF" backPrintColorNumber="0" ropMode="COPYPEN" angle="0" anchor="TOPLEFT" flip="NONE"><pt:pen style="NULL" widthX="0.5pt" widthY="0.5pt" color="#000000" printColorNumber="1"></pt:pen><pt:brush style="NULL" color="#000000" printColorNumber="1" id="0"></pt:brush><pt:expanded objectName="Text${i+1}" objectID="${hex5()}" ID="0" lock="0" templateMergeTarget="LABELLIST" templateMergeType="NONE" templateMergeID="0" allowOutOfBoundsTransfer="false" linkStatus="NONE" linkID="0"></pt:expanded></pt:objectStyle>${ptFont(400,c.size)}<text:textControl control="FIXEDFRAME" clipFrame="false" aspectNormal="true" shrink="false" autoLF="false" avoidImage="false"></text:textControl><text:textAlign horizontalAlignment="CENTER" verticalAlignment="CENTER" inLineAlignment="BASELINE"></text:textAlign><text:textStyle vertical="false" nullBlock="false" charSpace="0" lineSpace="0" orgPoint="${c.size}pt" combinedChars="false"></text:textStyle><text:transferSettings editOnPrintFormat="" editOnPrintOrder="0"></text:transferSettings><pt:data>${xmlEsc(data)}</pt:data>${items.map(it=>`<text:stringItem charLen="${it.n}">${ptFont(it.w,c.size)}</text:stringItem>`).join('')}</text:text><pt:brush style="NULL" color="#000000" printColorNumber="1" id="0"></pt:brush></table:cell>`;
   }).join('');
   return `<?xml version="1.0" encoding="UTF-8"?>
-<pt:document xmlns:pt="http://schemas.brother.info/ptouch/2007/lbx/main" xmlns:style="http://schemas.brother.info/ptouch/2007/lbx/style" xmlns:text="http://schemas.brother.info/ptouch/2007/lbx/text" xmlns:draw="http://schemas.brother.info/ptouch/2007/lbx/draw" xmlns:image="http://schemas.brother.info/ptouch/2007/lbx/image" xmlns:barcode="http://schemas.brother.info/ptouch/2007/lbx/barcode" xmlns:database="http://schemas.brother.info/ptouch/2007/lbx/database" xmlns:table="http://schemas.brother.info/ptouch/2007/lbx/table" xmlns:cable="http://schemas.brother.info/ptouch/2007/lbx/cable" version="1.11" generator="com.brother.ptouch.MobileCableLabelTool2"><pt:body currentSheet="Blatt 1" direction="LTR"><style:sheet name="Blatt 1"><style:paper media="0" width="51.2pt" height="2834.4pt" marginLeft="3.2pt" marginTop="5.6pt" marginRight="3.2pt" marginBottom="5.6pt" orientation="landscape" autoLength="true" monochromeDisplay="true" printColorDisplay="false" printColorsID="0" paperColor="#FFFFFF" paperInk="#000000" split="1" format="260" backgroundTheme="0" printerID="32560" printerName="Brother PT-E560BT"></style:paper><style:cutLine regularCut="0pt" freeCut=""></style:cutLine><style:backGround x="5.6pt" y="3.2pt" width="${r1(W+0.7)}pt" height="44.8pt" brushStyle="NULL" brushId="0" userPattern="NONE" userPatternId="0" color="#000000" printColorNumber="1" backColor="#FFFFFF" backPrintColorNumber="0"></style:backGround><pt:objects><cable:cable><pt:objectStyle x="5.6pt" y="3.2pt" width="${r1(W+0.7)}pt" height="44.8pt" backColor="#FFFFFF" backPrintColorNumber="0" ropMode="COPYPEN" angle="0" anchor="TOPLEFT" flip="NONE"><pt:pen style="SOLID" widthX="0.5pt" widthY="0.5pt" color="#666666" printColorNumber="1"></pt:pen><pt:brush style="NULL" color="#FFFFFF" printColorNumber="1" id="0"></pt:brush><pt:expanded objectName="Cable1" objectID="${hex5()}" ID="0" lock="2" templateMergeTarget="LABELLIST" templateMergeType="NONE" templateMergeID="0" allowOutOfBoundsTransfer="false" linkStatus="NONE" linkID="0"></pt:expanded></pt:objectStyle><cable:cableStyle cableType="PATCHPANEL" fontName="Arial" printerFont="true"></cable:cableStyle><cable:gridPosition x="${grid}" y="0pt 44.1pt"></cable:gridPosition><cable:patchpanel fontSize="11pt" uiType="0" blocklength="${Math.round(bl*100)/100}pt" blocknumber="${cells.length}" separator="LINE" reverse="false" orientation="false" multipliers="${mult.join(' ')}"></cable:patchpanel><table:cells>${cellXml}</table:cells></cable:cable></pt:objects></style:sheet></pt:body></pt:document>
+<pt:document xmlns:pt="http://schemas.brother.info/ptouch/2007/lbx/main" xmlns:style="http://schemas.brother.info/ptouch/2007/lbx/style" xmlns:text="http://schemas.brother.info/ptouch/2007/lbx/text" xmlns:draw="http://schemas.brother.info/ptouch/2007/lbx/draw" xmlns:image="http://schemas.brother.info/ptouch/2007/lbx/image" xmlns:barcode="http://schemas.brother.info/ptouch/2007/lbx/barcode" xmlns:database="http://schemas.brother.info/ptouch/2007/lbx/database" xmlns:table="http://schemas.brother.info/ptouch/2007/lbx/table" xmlns:cable="http://schemas.brother.info/ptouch/2007/lbx/cable" version="1.11" generator="com.brother.ptouch.MobileCableLabelTool2"><pt:body currentSheet="Blatt 1" direction="LTR"><style:sheet name="Blatt 1"><style:paper media="0" width="51.2pt" height="2834.4pt" marginLeft="3.2pt" marginTop="5.6pt" marginRight="3.2pt" marginBottom="5.6pt" orientation="landscape" autoLength="true" monochromeDisplay="true" printColorDisplay="false" printColorsID="0" paperColor="#FFFFFF" paperInk="#000000" split="1" format="260" backgroundTheme="0" printerID="32560" printerName="Brother PT-E560BT"></style:paper><style:cutLine regularCut="0pt" freeCut=""></style:cutLine><style:backGround x="5.6pt" y="3.2pt" width="${r1(W+0.7)}pt" height="44.8pt" brushStyle="NULL" brushId="0" userPattern="NONE" userPatternId="0" color="#000000" printColorNumber="1" backColor="#FFFFFF" backPrintColorNumber="0"></style:backGround><pt:objects><cable:cable><pt:objectStyle x="5.6pt" y="3.2pt" width="${r1(W+0.7)}pt" height="44.8pt" backColor="#FFFFFF" backPrintColorNumber="0" ropMode="COPYPEN" angle="0" anchor="TOPLEFT" flip="NONE"><pt:pen style="SOLID" widthX="0.5pt" widthY="0.5pt" color="#666666" printColorNumber="1"></pt:pen><pt:brush style="NULL" color="#FFFFFF" printColorNumber="1" id="0"></pt:brush><pt:expanded objectName="Cable1" objectID="${hex5()}" ID="0" lock="2" templateMergeTarget="LABELLIST" templateMergeType="NONE" templateMergeID="0" allowOutOfBoundsTransfer="false" linkStatus="NONE" linkID="0"></pt:expanded></pt:objectStyle><cable:cableStyle cableType="PATCHPANEL" fontName="Arial" printerFont="true"></cable:cableStyle><cable:gridPosition x="${grid}" y="0pt 44.1pt"></cable:gridPosition><cable:patchpanel fontSize="${cells.length&&cells[0].size||11}pt" uiType="0" blocklength="${Math.round(bl*100)/100}pt" blocknumber="${cells.length}" separator="LINE" reverse="false" orientation="false" multipliers="${mult.join(' ')}"></cable:patchpanel><table:cells>${cellXml}</table:cells></cable:cable></pt:objects></style:sheet></pt:body></pt:document>
 `;
 }
 function lbxPropXml(){
@@ -758,35 +778,44 @@ function buildLbxs(cells, baseName){
   const lbx=zipStore([{name:'label.xml',data:enc.encode(lbxLabelXml(cells))},{name:'prop.xml',data:enc.encode(lbxPropXml())}]);
   return zipStore([{name:'config.json',data:enc.encode(JSON.stringify({CurrentLbx:nm+'.lbx',CurrentCsv:'',Version:'1.0'}))},{name:nm+'.lbx',data:lbx}]);
 }
-/* Feldtexte einer Reihe für das Patchpanel-Etikett */
+/* Feldtexte einer Reihe für das Patchpanel-Etikett: immer 4 Zeilen (Kopfzeile bleibt oben), einheitliche Schrift */
+const LBX_LINES = 4;
 function cellsFromRow(r, comp, showRest){
   const cells=r.items.map(it=>{
     const info=comp[it.uid]||{id:''}, ln=it.lines.map(x=>(x||'').trim());
-    let lines, bold=false;
+    let lines, bold=true;
     if(it.kind==='fuse') lines=[info.id,ln[0],ln[1],ln[2]];
-    else if(it.kind==='fi'){ lines=[info.id,`${it.name} ${it.detail||''}`.trim(), (it.autoRange&&info.range)?`Sicherungen ${info.range}`:ln[0]]; if(ln[1]) lines.push(ln[1]); }
-    else if(it.kind==='device'){ lines=[`${info.id} ${ln[0]}`.trim(),ln[1],ln[2]]; bold=true; }
-    else lines=[' '];
-    while(lines.length>1 && !lines[lines.length-1]) lines.pop();
+    else if(it.kind==='fi') lines=[info.id,`${it.name} ${it.detail||''}`.trim(), (it.autoRange&&info.range)?`Sicherungen ${info.range}`:ln[0], ln[1]];
+    else if(it.kind==='device'){ const t=`${info.id} ${ln[0]}`.trim(); lines=(ln[1]||ln[2])?[t,ln[1],ln[2]]:[t]; }
+    else { lines=[' ']; bold=false; }
     lines=lines.map(x=>x||'');
-    return {te:Number(it.te)||1, lines, bold:bold||it.kind==='fuse'||it.kind==='fi', size:(lines.length>3?10:11)};
+    if(it.kind!=='empty' && !(it.kind==='device' && lines.length===1)) while(lines.length<LBX_LINES) lines.push('');
+    return {te:Number(it.te)||1, lines, bold};
   });
   const rest=r.te-rowUsed(r);
-  if(showRest && rest>0.001) cells.push({te:Math.round(rest*10)/10,lines:[' '],bold:false,size:11});
+  if(showRest && rest>0.001) cells.push({te:Math.round(rest*10)/10,lines:[' '],bold:false});
   return cells;
 }
-async function makeLbxsFiles(){
-  const p=P(), comp=compute(p), files=[];
-  for(const r of p.rows){
-    if(!r.items.length) continue;
-    const cells=cellsFromRow(r,comp,p.showRest);
-    if(cells.length>50) continue;
-    const data=buildLbxs(cells, `${p.name}_${r.name}`);
-    files.push(new File([data], safeName(`${p.name}_${r.name}.lbxs`), {type:'application/octet-stream'}));
-  }
-  return files;
+/* größte Schrift (pt), bei der ALLE Zeilen in ihre Felder passen; gilt einheitlich für alle Felder */
+function pickLbxSize(allCells){
+  const cv=document.createElement('canvas').getContext('2d'); let best=8.5;      // 4 Zeilen passen in 41,4 pt Höhe bis ca. 8,5 pt
+  allCells.forEach(c=>{
+    const frameW=c.te*BLOCK_PT-2.7-3;
+    c.lines.forEach((ln,k)=>{ if(!ln.trim()) return; cv.font=`${(c.bold&&k===0)?'bold ':''}100px Arial`; const w=cv.measureText(ln).width; if(w>0) best=Math.min(best,frameW*100/w); });
+  });
+  return Math.max(5,Math.floor(best*2)/2);
 }
-
+async function makeLbxsFiles(){
+  const p=P(), comp=compute(p), files=[], sets=[];
+  for(const r of p.rows){ if(!r.items.length) continue; const cells=cellsFromRow(r,comp,p.showRest); if(cells.length<=50) sets.push({r,cells}); }
+  const fixed=Number(S.settings.lbxSize)||0;
+  const size = fixed || pickLbxSize(sets.flatMap(x=>x.cells));       // einheitlich über alle Reihen
+  sets.forEach(({r,cells})=>{
+    cells.forEach(c=>c.size=size);
+    files.push(new File([buildLbxs(cells, `${p.name}_${r.name}`)], safeName(`${p.name}_${r.name}.lbxs`), {type:'application/octet-stream'}));
+  });
+  files.size=size; return files;
+}
 /* ============================ Export / Mehr ============================ */
 function renderExp(){
   const p=P(), s=S.settings, el=document.getElementById('tab-exp');
@@ -801,7 +830,8 @@ function renderExp(){
     <label class="f">Bild um 90° drehen<input type="checkbox" id="rot" ${s.rotate?'checked':''}></label></div>
     <p class="muted">Pro Reihe entsteht ein PNG mit ${fmt(H_DEV)} mm Höhe und der exakten Breite (TE × ${String(TE_MM).replace('.',',')} mm). Über „Teilen“ direkt in die Brother-App / P-touch-Software senden oder speichern.</p>
     <div class="grid2"><button id="mkPng">PNG teilen / speichern</button></div>
-    <p class="muted" style="margin-top:12px"><b>Für Brother Pro Label Tool:</b> Pro Reihe eine <code>.lbxs</code>-Datei (Patchpanel-Etikett mit einem Feld je Bauteil, Breite = TE × ${String(TE_MM).replace('.',',')} mm), die du direkt in der App öffnest und druckst.</p>
+    <label class="f" style="margin-top:12px">Schriftgröße im Pro Label Tool<select id="lbxSize"><option value="0" ${!s.lbxSize?'selected':''}>automatisch (einheitlich für alle Felder)</option>${[5,6,7,8,8.5].map(v=>`<option value="${v}" ${+s.lbxSize===v?'selected':''}>${String(v).replace('.',',')} pt fest</option>`).join('')}</select></label>
+    <p class="muted" style="margin-top:8px"><b>Für Brother Pro Label Tool:</b> Pro Reihe eine <code>.lbxs</code>-Datei (Patchpanel-Etikett mit einem Feld je Bauteil, Breite = TE × ${String(TE_MM).replace('.',',')} mm), die du direkt in der App öffnest und druckst.</p>
     <div class="grid2"><button id="mkLbx">.lbxs teilen / speichern</button></div></div>
   <div class="card"><h2>Datensicherung</h2>
     <p class="muted">Exportiert Verteiler, Bauteilliste, Räume und Vorlagen als Datei. Beim Einlesen wird zusammengeführt – vorhandene Daten bleiben erhalten.</p>
@@ -825,9 +855,10 @@ function renderExp(){
     try{ const files=await makePngFiles(); if(!files.length) toast('Keine Felder vorhanden'); else await shareOrDownload(files); }catch(err){ console.error(err); toast('Fehler: '+err.message); }
     b.disabled=false; b.textContent='PNG teilen / speichern';
   };
+  el.querySelector('#lbxSize').onchange=e=>{ s.lbxSize=+e.target.value; save(); };
   el.querySelector('#mkLbx').onclick=async e=>{
     const b=e.target; b.disabled=true; b.textContent='Erstelle …';
-    try{ const files=await makeLbxsFiles(); if(!files.length) toast('Keine Felder vorhanden'); else await shareOrDownload(files); }catch(err){ console.error(err); toast('Fehler: '+err.message); }
+    try{ const files=await makeLbxsFiles(); if(!files.length) toast('Keine Felder vorhanden'); else { toast('Schriftgröße '+String(files.size).replace('.',',')+' pt'); await shareOrDownload(files); } }catch(err){ console.error(err); toast('Fehler: '+err.message); }
     b.disabled=false; b.textContent='.lbxs teilen / speichern';
   };
   el.querySelector('#expCur').onclick=()=>exportData([p]);
@@ -888,7 +919,7 @@ function renderTab(){
 document.querySelectorAll('nav.tabs button').forEach(b=>b.onclick=()=>{ tab=b.dataset.tab; renderTab(); window.scrollTo(0,0); });
 
 /* ============================ Start + Update-Prüfung ============================ */
-const APP_VERSION = '1.5.0';   // bei jeder neuen Version hier UND in version.json hochzählen
+const APP_VERSION = '1.5.2';   // bei jeder neuen Version hier UND in version.json hochzählen
 load(); renderAll();
 
 const updBanner=document.getElementById('updBanner'), updText=document.getElementById('updText'), updBtn=document.getElementById('updBtn');
