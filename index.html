@@ -95,7 +95,7 @@ label.f{display:flex;flex-direction:column;gap:3px;font-size:13px;color:var(--mu
 <script>
 "use strict";
 /* ============================ Konstanten ============================ */
-const TE_MM = 17.6;            // Breite einer Teilungseinheit
+const TE_MM = 17.8;            // Breite einer Teilungseinheit
 const H_PDF = 21.5;            // Feldhöhe PDF (mm)
 const H_DEV = 18;              // Feldhöhe Beschriftungsgerät (mm)
 const FONT = '"Calibri","Carlito","Segoe UI","Helvetica Neue",Arial,sans-serif';
@@ -987,7 +987,7 @@ function renderTab(){
 document.querySelectorAll('nav.tabs button').forEach(b=>b.onclick=()=>{ tab=b.dataset.tab; renderTab(); window.scrollTo(0,0); });
 
 /* ============================ Start + Update-Prüfung ============================ */
-const APP_VERSION = '1.6.1';   // bei jeder neuen Version hier UND in version.json hochzählen
+const APP_VERSION = '1.6.2';   // bei jeder neuen Version hier UND in version.json hochzählen
 load(); renderAll();
 
 const updBanner=document.getElementById('updBanner'), updText=document.getElementById('updText'), updBtn=document.getElementById('updBtn');
