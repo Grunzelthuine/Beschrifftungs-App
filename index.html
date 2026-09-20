@@ -457,21 +457,31 @@ function dlgTemplates(){
 /* ============================ Foto-Erkennung (Claude-API) ============================ */
 function photoPrompt(maxTE){
   const list = S.types.map(t=>`- ${t.id}: ${t.name} (${fmt(t.te)} TE, Art: ${t.kind})`).join('\n');
-  return `Das Foto zeigt einen Elektro-Verteiler (Schrank mit Hutschienen). Der Schrank besteht aus einem oder mehreren FELDERN, die nebeneinander stehen (jedes Feld hat einen eigenen Rahmen/eine eigene Abdeckung, oft durch senkrechte Stege oder Trennungen erkennbar). Jedes Feld enthält mehrere Hutschienen-REIHEN übereinander. Eine Reihe in einem Feld ist höchstens ${maxTE} TE breit.
-WICHTIG: Erfasse zuerst die einzelnen FELDER (von links nach rechts) und darin die Reihen (von oben nach unten), und in jeder Reihe die Bauteile von links nach rechts. Eine Reihe darf NIE über ein Feld hinausgehen: Wenn nebeneinander mehr als ${maxTE} TE sitzen, gehört der Rest in das nächste Feld und ist dort eine eigene Reihe. Fasse Reihen aus verschiedenen Feldern niemals zu einer langen Reihe zusammen.
-Maße: 1 Teilungseinheit (TE) = Breite eines normalen einpoligen Sicherungsautomaten. Schätze jede Breite relativ dazu (Gesamtsumme je Reihe ≤ ${maxTE}).
+  return `Du analysierst das Foto eines Elektro-Verteilers (Schrank mit Hutschienen), um daraus Beschriftungsstreifen zu planen.
+
+AUFBAU
+- Der Schrank besteht aus einem oder mehreren FELDERN nebeneinander (senkrechte Trennung, eigener Rahmen). Jedes Feld hat mehrere Hutschienen-REIHEN übereinander (meist 5, gleicher Abstand). Manche Reihen sind leer und mit weißen Blenden/Abdeckungen verschlossen.
+- Die nutzbare Breite einer Reihe in einem Feld ist genau ${maxTE} TE (1 TE = Breite eines schmalen einpoligen Sicherungsautomaten). Mehr als ${maxTE} TE nebeneinander gibt es nie in einer Reihe: Alles, was weiter rechts hinter einer senkrechten Trennung liegt, gehört zum nächsten Feld.
+- Bearbeite die Felder von links nach rechts, darin die Reihen von oben nach unten, darin die Bauteile von links nach rechts.
+
+WAS ERFASST WIRD
+- Nur Bauteile, die wirklich montiert sind. Reihen, die komplett leer/mit Blenden verdeckt sind, LASSE WEG. Weiße Kunststoff-Blenden, Abdeckungen und freier Platz sind KEINE Bauteile – auch nicht am rechten Ende einer Reihe (freien Platz füllt die App automatisch auf). Nur freier Platz ZWISCHEN zwei Bauteilen wird als "gap" mit Breite erfasst.
+- Sicherungsautomaten (LS): jeder Kippschalter/Hebel einzeln = 1 Sicherung ("ls1", 1 TE). Zähle die Hebel genau. Mehrere gleiche direkt nebeneinander fasse mit "count" zusammen (z. B. 8 Sicherungen: {"type":"ls1","count":8}). Drei gekoppelte Hebel = ein 3-poliger Automat ("ls3").
+- FI/RCD (Fehlerstromschutzschalter, breiter Block, meist ganz links vor den Sicherungen einer Reihe) = Typ "fi".
+- Alle anderen Geräte (KNX-Aktoren, Dimmaktoren, Rolloaktoren, Heizungsaktoren, Binäreingänge, Netzteile, Überspannungsschutz …) sind je EIN Bauteil. Benutze den passenden Typ aus der Liste, sonst "type": null mit kurzem deutschem "name".
+- Lies KEINE Beschriftungstexte/Nummern ab. Bereits aufgeklebte Beschriftungsstreifen unter den Geräten helfen aber bei der Breite: ihre Feldgrenzen fallen mit den Gerätegrenzen zusammen.
+
+MASSE (sehr wichtig)
+Gib für jede Reihe die Position der nutzbaren Hutschienen-Breite an: "x0" und "x1" = linke und rechte Kante der ${maxTE}-TE-Reihe in TAUSENDSTEL der Bildbreite (0–1000). Gib für jedes Gerät, das nicht "ls1"/"fi" ist, ebenfalls "x0" und "x1" (linke/rechte Kante des Geräts, gleiche Skala) an. Die App berechnet daraus die Breite in TE. Schätze zusätzlich "te" als ganze Zahl.
+
 Bekannte Bauteiltypen (verwende die id):
 ${list}
-Regeln:
-- Jeder einzelne Sicherungsautomat/LS-Schalter ist ein eigenes Element (Typ "ls1", 1 TE), auch wenn viele nebeneinander sitzen. Zähle sie einzeln und genau. Mehrpolige Automaten als "ls3" (3 TE) bzw. mit passender Breite.
-- FI/RCD (Fehlerstromschutzschalter, breit, mit Prüftaste) als Typ "fi".
-- Ist ein Gerät keinem bekannten Typ zuzuordnen (z. B. Dimmaktor, Netzteil, Überspannungsschutz), nimm "type": null, gib "name" (kurz, deutsch) und die geschätzte Breite in "te" an.
-- Freie Plätze und Blindabdeckungen als "type": "gap" mit ihrer Breite in TE (sodass die Reihe ${maxTE} TE ergibt, wenn sie voll belegt ist).
-- Lies KEINE Nummern oder Beschriftungstexte, nur Bauteile und Breiten.
-Antworte AUSSCHLIESSLICH mit JSON in dieser Form, ohne weiteren Text:
-{"felder":[{"name":"Feld 1","rows":[{"items":[{"type":"fi","te":4},{"type":"ls1","te":1},{"type":null,"name":"Dimmaktor","te":4},{"type":"gap","te":3}]}]}],"notes":"Hinweise zu unsicheren Stellen"}`;
+
+ANTWORT: Ausschließlich JSON, nichts davor oder danach. Beginne mit einer kurzen "analyse" (Anzahl Felder, Reihen je Feld, welche Reihen leer sind), dann die Daten:
+{"analyse":"2 Felder, je 5 Reihen, Reihe 1-2 leer …","felder":[{"name":"Feld 1","rows":[{"pos":3,"x0":60,"x1":490,"items":[{"type":null,"name":"Schaltaktor","te":10,"x0":60,"x1":415}]},{"pos":5,"x0":80,"x1":490,"items":[{"type":"fi","te":4},{"type":"ls1","count":8}]}]}],"notes":"Unsicherheiten"}
+("pos" = Nummer der Reihe im Feld von oben, leere Reihen mitgezählt.)`;
 }
-function downscale(file, maxPx=1800){
+function downscale(file, maxPx=2400){
   return new Promise((res,rej)=>{
     const img=new Image(), url=URL.createObjectURL(file);
     img.onload=()=>{ const k=Math.min(1,maxPx/Math.max(img.width,img.height)); const c=document.createElement('canvas'); c.width=Math.round(img.width*k); c.height=Math.round(img.height*k);
@@ -480,10 +490,10 @@ function downscale(file, maxPx=1800){
     img.src=url;
   });
 }
-async function askClaude(dataUrl, key, model, maxTE){
+async function askClaude(dataUrl, key, model, maxTE){ /* liefert data inkl. analyse */
   const r = await fetch('https://api.anthropic.com/v1/messages',{method:'POST',
     headers:{'content-type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-    body:JSON.stringify({model,max_tokens:4000,messages:[{role:'user',content:[
+    body:JSON.stringify({model,max_tokens:6000,messages:[{role:'user',content:[
       {type:'image',source:{type:'base64',media_type:'image/jpeg',data:dataUrl.split(',')[1]}},
       {type:'text',text:photoPrompt(maxTE)}]}]})});
   if(!r.ok){ let m=''; try{ m=(await r.json()).error?.message||''; }catch(e){}
@@ -495,23 +505,35 @@ async function askClaude(dataUrl, key, model, maxTE){
 }
 function rowsFromPhoto(data, maxTE=12){
   const felder = Array.isArray(data.felder) ? data.felder : [{name:'Feld 1',rows:data.rows}];
-  const mkItem = x=>{
-    const te=Math.max(0.5,Number(x.te)||1);
-    if(x.type==='gap'){ const it=makeItem(typeById('gap')||DEFAULT_TYPES[7]); it.te=te; return it; }
-    const t = x.type ? typeById(x.type) : null;
-    if(t){ const it=makeItem(t); if(t.kind==='device') it.te=te; return it; }
-    return makeItem({id:'custom',name:String(x.name||'Gerät'),te,kind:'device',prefix:''});
-  };
   const out=[]; let fNo=0;
   felder.forEach(f=>{
     fNo++; let rNo=0; const fname=String(f.name||('Feld '+fNo));
     (f.rows||[]).forEach(rw=>{
-      // Sicherheitsnetz: eine Reihe > maxTE gehört zu mehreren Feldern -> in Stücke von max. maxTE teilen
+      rNo++;
+      const rx0=Number(rw.x0), rx1=Number(rw.x1), railOk = isFinite(rx0)&&isFinite(rx1)&&rx1-rx0>50;
+      const items=[];
+      (rw.items||[]).forEach(x=>{
+        const t = x.type==='gap' ? null : (x.type ? typeById(x.type) : null);
+        const cnt = Math.max(1,Math.min(40,parseInt(x.count)||1));
+        let measured = null;
+        if(railOk && isFinite(+x.x0) && isFinite(+x.x1) && x.x1!=null && x.x0!=null) measured = Math.max(1,Math.round((x.x1-x.x0)/(rx1-rx0)*maxTE));
+        const guess = Number(x.te)>0 ? Number(x.te) : null;
+        for(let i=0;i<cnt;i++){
+          let it;
+          if(x.type==='gap'){ it=makeItem(typeById('gap')||DEFAULT_TYPES[7]); it.te=measured||guess||1; }
+          else if(t && (t.kind==='fuse'||t.kind==='fi')){ it=makeItem(t); }
+          else if(t){ it=makeItem(t); const m=measured||guess; if(m && Math.abs(m-t.te)>0.75) it.te=m; }
+          else { it=makeItem({id:'custom',name:String(x.name||'Gerät'),te:measured||guess||2,kind:'device',prefix:''}); }
+          items.push(it);
+        }
+      });
+      if(!items.length){ rNo--; return; }
+      // Sicherheitsnetz: > maxTE gehört zu mehreren Feldern -> in Stücke von max. maxTE teilen
       const chunks=[[]]; let sum=0;
-      (rw.items||[]).map(mkItem).forEach(it=>{ if(sum+it.te>maxTE+1e-6 && chunks[chunks.length-1].length){ chunks.push([]); sum=0; } chunks[chunks.length-1].push(it); sum+=it.te; });
-      chunks.forEach((items,ci)=>{ rNo++;
-        const nm = chunks.length>1 ? `${fname}${ci?' (Folge '+ci+')':''} · Reihe ${rNo}` : `${fname} · Reihe ${rNo}`;
-        out.push({id:uid(),name:nm,te:maxTE,items,feld:fname}); });
+      items.forEach(it=>{ if(sum+it.te>maxTE+1e-6 && chunks[chunks.length-1].length){ chunks.push([]); sum=0; } chunks[chunks.length-1].push(it); sum+=it.te; });
+      const pos = parseInt(rw.pos)||rNo;
+      chunks.forEach((its,ci)=>{
+        out.push({id:uid(),name:`${fname}${ci?' (Folge '+ci+')':''} · Reihe ${pos}`,te:maxTE,items:its,feld:fname}); });
     });
   });
   return out;
@@ -546,7 +568,7 @@ function dlgPhoto(){
         const data=await askClaude(dataUrl,key,model,maxTE); result=rowsFromPhoto(data,maxTE);
         st.textContent='';
         d.querySelector('#res').innerHTML=`<h3 style="margin-top:12px">Vorschlag</h3>${result.map(r=>`<div class="card" style="margin-bottom:6px"><b>${esc(r.name)}</b> · ${fmt(r.items.reduce((a,b)=>a+b.te,0))} von ${fmt(r.te)} TE<div class="muted">${esc(summarize(r.items))||'leer'}</div></div>`).join('')||'<p class="muted">Nichts erkannt.</p>'}
-          ${data.notes?`<p class="muted">Hinweis: ${esc(data.notes)}</p>`:''}
+          ${data.analyse?`<p class="muted">Analyse: ${esc(data.analyse)}</p>`:''}${data.notes?`<p class="muted">Hinweis: ${esc(data.notes)}</p>`:''}
           <div class="dlgbtn"><button class="sec" id="toCur">Zum aktuellen Verteiler</button><button id="toNew">Als neuer Verteiler</button></div>`;
         d.querySelector('#toCur').onclick=()=>{ P().rows.push(...result); save(); closeDlg(); tab='edit'; renderAll(); toast('Reihen übernommen – bitte prüfen'); };
         d.querySelector('#toNew').onclick=()=>{ const p=newProject('Verteiler (Foto)'); p.rows=result; S.projects.push(p); S.cur=p.id; save(); closeDlg(); tab='edit'; renderAll(); toast('Verteiler angelegt – bitte prüfen'); };
@@ -777,7 +799,7 @@ function renderTab(){
 document.querySelectorAll('nav.tabs button').forEach(b=>b.onclick=()=>{ tab=b.dataset.tab; renderTab(); window.scrollTo(0,0); });
 
 /* ============================ Start + Update-Prüfung ============================ */
-const APP_VERSION = '1.3.0';   // bei jeder neuen Version hier UND in version.json hochzählen
+const APP_VERSION = '1.4.0';   // bei jeder neuen Version hier UND in version.json hochzählen
 load(); renderAll();
 
 const updBanner=document.getElementById('updBanner'), updText=document.getElementById('updText'), updBtn=document.getElementById('updBtn');
