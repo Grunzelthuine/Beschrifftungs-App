@@ -472,7 +472,7 @@ WAS ERFASST WIRD
 - Lies KEINE Beschriftungstexte/Nummern ab. Bereits aufgeklebte Beschriftungsstreifen unter den Geräten helfen aber bei der Breite: ihre Feldgrenzen fallen mit den Gerätegrenzen zusammen.
 
 MASSE (sehr wichtig)
-Gib für jede Reihe die Position der nutzbaren Hutschienen-Breite an: "x0" und "x1" = linke und rechte Kante der ${maxTE}-TE-Reihe in TAUSENDSTEL der Bildbreite (0–1000). Gib für JEDES Bauteil außer einzelnen Sicherungen ("ls1") ebenfalls "x0" und "x1" (linke/rechte Kante des Bauteils, gleiche Skala) an – auch für FI und mehrpolige Automaten. Die App berechnet daraus die Breite in TE. Die TE-Angaben der Typenliste sind nur Richtwerte: Je nach Hersteller sind Bauteile breiter oder schmaler (z. B. FI 2, 3 oder 4 TE, Aktoren 4 bis 12 TE). Miss die tatsächliche Breite im Bild und übernimm nicht einfach den Listenwert. Schätze zusätzlich "te" als ganze Zahl.
+Gib für jede Reihe die Position der nutzbaren Hutschienen-Breite an: "x0" und "x1" = linke und rechte Kante der ${maxTE}-TE-Reihe in TAUSENDSTEL der Bildbreite (0–1000). Gib für jedes Gerät, das nicht "ls1"/"fi" ist, ebenfalls "x0" und "x1" (linke/rechte Kante des Geräts, gleiche Skala) an. Die App berechnet daraus die Breite in TE. Schätze zusätzlich "te" als ganze Zahl.
 
 Bekannte Bauteiltypen (verwende die id):
 ${list}
@@ -521,7 +521,7 @@ function rowsFromPhoto(data, maxTE=12){
         for(let i=0;i<cnt;i++){
           let it;
           if(x.type==='gap'){ it=makeItem(typeById('gap')||DEFAULT_TYPES[7]); it.te=measured||guess||1; }
-          else if(t && t.kind==='fuse' && t.te<=1){ it=makeItem(t); }   // einzelne Sicherung = 1 TE
+          else if(t && (t.kind==='fuse'||t.kind==='fi')){ it=makeItem(t); }
           else if(t){ it=makeItem(t); const m=measured||guess; if(m && Math.abs(m-t.te)>0.75) it.te=m; }
           else { it=makeItem({id:'custom',name:String(x.name||'Gerät'),te:measured||guess||2,kind:'device',prefix:''}); }
           items.push(it);
@@ -799,16 +799,18 @@ function renderTab(){
 document.querySelectorAll('nav.tabs button').forEach(b=>b.onclick=()=>{ tab=b.dataset.tab; renderTab(); window.scrollTo(0,0); });
 
 /* ============================ Start + Update-Prüfung ============================ */
-const APP_VERSION = '1.4.1';   // bei jeder neuen Version hier UND in version.json hochzählen
+const APP_VERSION = '1.4.3';   // bei jeder neuen Version hier UND in version.json hochzählen
 load(); renderAll();
 
 const updBanner=document.getElementById('updBanner'), updText=document.getElementById('updText'), updBtn=document.getElementById('updBtn');
 let newVersion=null;
+const justUpdated=/[?&]upd=/.test(location.search);
+if(justUpdated) try{ history.replaceState(null,'',location.pathname); }catch(e){}
 async function checkUpdate(manual){
   try{
     const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'}); if(!r.ok) throw 0;
     const v=(await r.json()).version;
-    if(v && v!==APP_VERSION){ newVersion=v; updText.textContent=`Neue Version ${v} verfügbar (installiert: ${APP_VERSION}).`; updBanner.classList.add('on'); if(manual) toast('Neue Version gefunden'); return 'new'; }
+    if(v && v!==APP_VERSION){ newVersion=v; updText.textContent = justUpdated ? `Version ${v} ist noch nicht ausgeliefert (geladen: ${APP_VERSION}). GitHub braucht manchmal einige Minuten – bitte später erneut versuchen.` : `Neue Version ${v} verfügbar (installiert: ${APP_VERSION}).`; updBtn.disabled=false; updBtn.textContent = justUpdated ? 'Erneut versuchen' : 'Jetzt aktualisieren'; updBanner.classList.add('on'); if(manual) toast('Neue Version gefunden'); return 'new'; }
     if(manual) toast('Du hast die aktuelle Version ('+APP_VERSION+')');
     return 'ok';
   }catch(e){ if(manual) toast('Keine Verbindung – Prüfung nicht möglich'); return 'offline'; }
@@ -819,7 +821,10 @@ async function applyUpdate(){
     if('serviceWorker' in navigator){ const regs=await navigator.serviceWorker.getRegistrations(); await Promise.all(regs.map(r=>r.unregister())); }
     if(window.caches){ const ks=await caches.keys(); await Promise.all(ks.map(k=>caches.delete(k))); }
   }catch(e){}
-  location.reload();   // Projekte/Einstellungen (localStorage) bleiben erhalten
+  const t=Date.now();
+  // HTTP-/CDN-Cache umgehen: Dateien mit eindeutiger URL neu laden
+  try{ await Promise.all(['index.html','sw.js','manifest.webmanifest','version.json'].map(f=>fetch(f+'?upd='+t,{cache:'reload'}))); }catch(e){}
+  location.replace(location.pathname + '?upd=' + t);   // Projekte/Einstellungen (localStorage) bleiben erhalten
 }
 updBtn.onclick=applyUpdate;
 document.getElementById('updLater').onclick=()=>updBanner.classList.remove('on');
