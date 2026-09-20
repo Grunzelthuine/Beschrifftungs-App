@@ -179,7 +179,7 @@ const typeById = id => S.types.find(t=>t.id===id);
 
 
 /* ============================ Automatische Worttrennung (Deutsch, ohne Bibliothek) ============================ */
-const HY_PARTS = ['wasch','maschine','spül','trockner','back','ofen','herd','mikro','welle','dampf','garer','garten','garage','keller','boden','dach','zimmer','raum','küche','kammer','schrank','dose','steck','licht','lampe','leuchte','wärme','pumpe','anlage','heizung','kühl','gefrier','truhe','schlaf','wohn','ess','arbeits','hobby','gäste','kinder','eltern','flur','büro','bad','terrasse','außen','aussen','haus','hof','tür','tor','antrieb','rollo','rolladen','jalousie','markise','fenster','kontakt','melder','sensor','strom','wasser','abluft','zuluft','lüftung','klima','solar','netz','boiler','durchlauf','erhitzer','pumpen','brunnen','sauna','pool','wallbox','ladestation','server','router','switch','telefon','klingel','sprech','bewegung','gong','aktor','taster','netzteil','schalter','verteiler','fußboden','heiz','kreis','vorraum','abstell','speise','vorrats','werkstatt','wirtschaft','hauswirtschaft','dusche','waschtisch','spiegel','beleuchtung','decke','wand','sockel','außenlicht','weg','einfahrt','carport','kind','neubau','altbau','ober','unter','erd','dach','geschoss','kaminofen','kamin','induktion','kochfeld','abzug','dunst','haube','kühlschrank','geschirr','spüler','wäsche','trocken','gefrierschrank'];
+const HY_PARTS = ['wirtschafts','heizungs','wohnungs','wasch','maschine','spül','trockner','back','ofen','herd','mikro','welle','dampf','garer','garten','garage','keller','boden','dach','zimmer','raum','küche','kammer','schrank','dose','steck','licht','lampe','leuchte','wärme','pumpe','anlage','heizung','kühl','gefrier','truhe','schlaf','wohn','ess','arbeits','hobby','gäste','kinder','eltern','flur','büro','bad','terrasse','außen','aussen','haus','hof','tür','tor','antrieb','rollo','rolladen','jalousie','markise','fenster','kontakt','melder','sensor','strom','wasser','abluft','zuluft','lüftung','klima','solar','netz','boiler','durchlauf','erhitzer','pumpen','brunnen','sauna','pool','wallbox','ladestation','server','router','switch','telefon','klingel','sprech','bewegung','gong','aktor','taster','netzteil','schalter','verteiler','fußboden','heiz','kreis','vorraum','abstell','speise','vorrats','werkstatt','wirtschaft','hauswirtschaft','dusche','waschtisch','spiegel','beleuchtung','decke','wand','sockel','außenlicht','weg','einfahrt','carport','kind','neubau','altbau','ober','unter','erd','dach','geschoss','kaminofen','kamin','induktion','kochfeld','abzug','dunst','haube','kühlschrank','geschirr','spüler','wäsche','trocken','gefrierschrank'];
 const HY_DIGRAPH = ['ch','ck','ph','th','sh','qu','ei','ie','eu','au','äu','ai','oi','ng','tz','pf'];
 const isVow = c => 'aeiouyäöü'.includes(c);
 function hyphenPoints(w){
@@ -199,6 +199,7 @@ function hyphenPoints(w){
     if(isVow(a) && !isVow(b) && isVow(c)) pts.set(i,1);
     else if(!isVow(a) && !isVow(b) && isVow(c) && /[aeiouyäöü]/.test(lw.slice(0,i))) pts.set(i,1);
   }
+  for(const i of [...pts.keys()]){ if(pts.get(i)<3 && lw[i]==='s' && !isVow(lw[i+1]||'a')) pts.delete(i); }   // Fugen-s nicht abtrennen
   return pts;
 }
 /* zerlegt ein Wort so, dass jedes Teilstück (inkl. Trennstrich) in die Breite passt; fits(text)->bool */
