@@ -177,6 +177,50 @@ function makeItem(t){
 }
 const typeById = id => S.types.find(t=>t.id===id);
 
+
+/* ============================ Automatische Worttrennung (Deutsch, ohne Bibliothek) ============================ */
+const HY_PARTS = ['wasch','maschine','spül','trockner','back','ofen','herd','mikro','welle','dampf','garer','garten','garage','keller','boden','dach','zimmer','raum','küche','kammer','schrank','dose','steck','licht','lampe','leuchte','wärme','pumpe','anlage','heizung','kühl','gefrier','truhe','schlaf','wohn','ess','arbeits','hobby','gäste','kinder','eltern','flur','büro','bad','terrasse','außen','aussen','haus','hof','tür','tor','antrieb','rollo','rolladen','jalousie','markise','fenster','kontakt','melder','sensor','strom','wasser','abluft','zuluft','lüftung','klima','solar','netz','boiler','durchlauf','erhitzer','pumpen','brunnen','sauna','pool','wallbox','ladestation','server','router','switch','telefon','klingel','sprech','bewegung','gong','aktor','taster','netzteil','schalter','verteiler','fußboden','heiz','kreis','vorraum','abstell','speise','vorrats','werkstatt','wirtschaft','hauswirtschaft','dusche','waschtisch','spiegel','beleuchtung','decke','wand','sockel','außenlicht','weg','einfahrt','carport','kind','neubau','altbau','ober','unter','erd','dach','geschoss','kaminofen','kamin','induktion','kochfeld','abzug','dunst','haube','kühlschrank','geschirr','spüler','wäsche','trocken','gefrierschrank'];
+const HY_DIGRAPH = ['ch','ck','ph','th','sh','qu','ei','ie','eu','au','äu','ai','oi','ng','tz','pf'];
+const isVow = c => 'aeiouyäöü'.includes(c);
+function hyphenPoints(w){
+  const lw=w.toLowerCase(), pts=new Map();
+  for(let i=1;i<w.length-1;i++) if(w[i]==='-' && i>=1) pts.set(i+1,3);                 // vorhandene Bindestriche
+  for(const part of HY_PARTS){                                                         // Wortbestandteile
+    let i=lw.indexOf(part);
+    while(i>=0){ const e=i+part.length;
+      if(i>=2 && w.length-i>=3 && !pts.has(i)) pts.set(i,2);
+      if(e>=2 && w.length-e>=3 && !pts.has(e)) pts.set(e,2);
+      i=lw.indexOf(part,i+1); } }
+  for(let i=2;i<=w.length-3;i++){                                                       // Silben (Faustregeln)
+    if(pts.has(i)) continue;
+    const a=lw[i-1], b=lw[i], c=lw[i+1], pair=a+b;
+    if(HY_DIGRAPH.includes(pair) || lw.slice(i-2,i+1)==='sch' || lw.slice(i-1,i+2)==='sch') continue;
+    if(w[i-1]==='-' || w[i]==='-') continue;
+    if(isVow(a) && !isVow(b) && isVow(c)) pts.set(i,1);
+    else if(!isVow(a) && !isVow(b) && isVow(c) && /[aeiouyäöü]/.test(lw.slice(0,i))) pts.set(i,1);
+  }
+  return pts;
+}
+/* zerlegt ein Wort so, dass jedes Teilstück (inkl. Trennstrich) in die Breite passt; fits(text)->bool */
+function breakWord(w, fits, depth=0){
+  if(fits(w) || depth>6) return [w];
+  const pts=hyphenPoints(w); let best=-1, bs=-1;
+  pts.forEach((sc,i)=>{ const part=w.slice(0,i)+(w[i-1]==='-'?'':'-'); if(fits(part) && (sc>bs || (sc===bs && i>best))){ best=i; bs=sc; } });
+  if(best<0) return [w];
+  return [w.slice(0,best)+(w[best-1]==='-'?'':'-'), ...breakWord(w.slice(best),fits,depth+1)];
+}
+/* bricht eine Zeile um (Leerzeichen, dann Worttrennung) */
+function wrapText(text, fits){
+  const out=[]; let cur='';
+  text.split(/\s+/).filter(Boolean).forEach(word=>{
+    if(cur && fits(cur+' '+word)){ cur+=' '+word; return; }
+    if(cur){ out.push(cur); cur=''; }
+    const parts=breakWord(word,fits); parts.slice(0,-1).forEach(p=>out.push(p)); cur=parts[parts.length-1];
+  });
+  if(cur) out.push(cur);
+  return out.length?out:[text];
+}
+
 /* ============================ Zeichnen ============================ */
 /* Teilt eine Reihe in Teilstücke, die max. maxTE breit sind (Trennung nur zwischen Bauteilen) */
 function splitRow(r, maxTE, showRest){
@@ -216,6 +260,12 @@ function drawPart(part, hMm, dpi, comp){
     if(f.empty) return;
     const it=f.it, info=comp[it.uid]||{id:''}, cx=(x0+x1)/2, avail=(x1-x0)-2.4*ppm;
     const L = layoutField(it, info);                    // [{t,bold,y,size}]
+    if(it.kind==='fuse'){                               // automatische Worttrennung der Zeilen unter der Kopfzeile
+      const body=L.texts.slice(1).filter(x=>x.t); const fsz=(body[0]||{size:3.3}).size*u;
+      const fits=t=>{ g.font=`${fsz}px ${FONT}`; return g.measureText(t).width<=avail; };
+      const wrapped=body.flatMap(x=>wrapText(x.t,fits));
+      if(wrapped.length<=3 && wrapped.length>body.length){ const ys=[0.40,0.63,0.86]; L.texts=[L.texts[0],...wrapped.map((t,k)=>({t,bold:false,y:ys[k],size:body[0].size}))]; }
+    }
     if(L.line){ g.beginPath(); g.moveTo(x0+1.2*ppm, L.line*H); g.lineTo(x1-1.2*ppm, L.line*H); g.lineWidth=Math.max(1,lw*0.7); g.stroke(); g.lineWidth=lw; }
     // Schrift gemeinsam für das Feld verkleinern, wenn nötig
     let fac=1;
@@ -789,32 +839,49 @@ function cellsFromRow(r, comp, showRest){
     else if(it.kind==='device'){ const t=`${info.id} ${ln[0]}`.trim(); lines=(ln[1]||ln[2])?[t,ln[1],ln[2]]:[t]; }
     else { lines=[' ']; bold=false; }
     lines=lines.map(x=>x||'');
-    if(it.kind!=='empty' && !(it.kind==='device' && lines.length===1)) while(lines.length<LBX_LINES) lines.push('');
-    return {te:Number(it.te)||1, lines, bold};
+    const pad = it.kind!=='empty' && !(it.kind==='device' && lines.length===1);
+    return {te:Number(it.te)||1, lines, bold, pad, wrapFrom: it.kind==='device'?0:1};
   });
   const rest=r.te-rowUsed(r);
-  if(showRest && rest>0.001) cells.push({te:Math.round(rest*10)/10,lines:[' '],bold:false});
+  if(showRest && rest>0.001) cells.push({te:Math.round(rest*10)/10,lines:[' '],bold:false,pad:false,wrapFrom:1});
   return cells;
 }
-/* größte Schrift (pt), bei der ALLE Zeilen in ihre Felder passen; gilt einheitlich für alle Felder */
-function pickLbxSize(allCells){
-  const cv=document.createElement('canvas').getContext('2d'); let best=8.5;      // 4 Zeilen passen in 41,4 pt Höhe bis ca. 8,5 pt
-  allCells.forEach(c=>{
-    const frameW=c.te*BLOCK_PT-2.7-3;
-    c.lines.forEach((ln,k)=>{ if(!ln.trim()) return; cv.font=`${(c.bold&&k===0)?'bold ':''}100px Arial`; const w=cv.measureText(ln).width; if(w>0) best=Math.min(best,frameW*100/w); });
-  });
-  return Math.max(5,Math.floor(best*2)/2);
+/* Umbruch + größte einheitliche Schrift (pt): höchstens 4 Zeilen je Feld, jede Zeile passt in die Feldbreite */
+function fitLbxCells(cells, fixed){
+  const cv=document.createElement('canvas').getContext('2d');
+  const measure=(t,bold,size)=>{ cv.font=`${bold?'bold ':''}${size}px Arial`; return cv.measureText(t).width; };
+  const tryLayout=size=>{
+    let over=0;
+    const res=cells.map(c=>{
+      const frameW=c.te*BLOCK_PT-2.7-3, from=c.wrapFrom;
+      let lines=c.lines.slice(0,from);
+      c.lines.slice(from).filter(x=>x.trim()).forEach(x=>{ lines.push(...wrapText(x,t=>measure(t,false,size)<=frameW+0.01)); });
+      if(from===0 && lines.length) { /* Gerätetitel fett gemessen */
+        lines=[]; c.lines.filter(x=>x.trim()).forEach(x=>lines.push(...wrapText(x,t=>measure(t,true,size)<=frameW+0.01)));
+      }
+      const wide=lines.some((ln,k)=>ln.trim() && measure(ln,c.bold&&k===0,size)>frameW+0.01);
+      if(c.pad) while(lines.length<LBX_LINES) lines.push('');
+      if(lines.length>LBX_LINES || wide) over++;
+      return {...c,lines,size};
+    });
+    return {res,over};
+  };
+  if(fixed){ const r=tryLayout(fixed); return {cells:r.res,size:fixed,over:r.over}; }
+  for(let size=8.5; size>=5; size-=0.5){ const r=tryLayout(size); if(!r.over) return {cells:r.res,size,over:0}; }
+  const r=tryLayout(5); return {cells:r.res,size:5,over:r.over};
 }
 async function makeLbxsFiles(){
   const p=P(), comp=compute(p), files=[], sets=[];
   for(const r of p.rows){ if(!r.items.length) continue; const cells=cellsFromRow(r,comp,p.showRest); if(cells.length<=50) sets.push({r,cells}); }
   const fixed=Number(S.settings.lbxSize)||0;
-  const size = fixed || pickLbxSize(sets.flatMap(x=>x.cells));       // einheitlich über alle Reihen
+  // einheitliche Größe über alle Reihen: kleinste passende Größe aller Reihen
+  let size = fixed || Math.min(...sets.map(x=>fitLbxCells(x.cells,0).size), 8.5);
+  let over=0;
   sets.forEach(({r,cells})=>{
-    cells.forEach(c=>c.size=size);
-    files.push(new File([buildLbxs(cells, `${p.name}_${r.name}`)], safeName(`${p.name}_${r.name}.lbxs`), {type:'application/octet-stream'}));
+    const f=fitLbxCells(cells,size); over+=f.over;
+    files.push(new File([buildLbxs(f.cells, `${p.name}_${r.name}`)], safeName(`${p.name}_${r.name}.lbxs`), {type:'application/octet-stream'}));
   });
-  files.size=size; return files;
+  files.size=size; files.over=over; return files;
 }
 /* ============================ Export / Mehr ============================ */
 function renderExp(){
@@ -858,7 +925,7 @@ function renderExp(){
   el.querySelector('#lbxSize').onchange=e=>{ s.lbxSize=+e.target.value; save(); };
   el.querySelector('#mkLbx').onclick=async e=>{
     const b=e.target; b.disabled=true; b.textContent='Erstelle …';
-    try{ const files=await makeLbxsFiles(); if(!files.length) toast('Keine Felder vorhanden'); else { toast('Schriftgröße '+String(files.size).replace('.',',')+' pt'); await shareOrDownload(files); } }catch(err){ console.error(err); toast('Fehler: '+err.message); }
+    try{ const files=await makeLbxsFiles(); if(!files.length) toast('Keine Felder vorhanden'); else { toast('Schriftgröße '+String(files.size).replace('.',',')+' pt'+(files.over?' – '+files.over+' Feld(er) zu voll':'')); await shareOrDownload(files); } }catch(err){ console.error(err); toast('Fehler: '+err.message); }
     b.disabled=false; b.textContent='.lbxs teilen / speichern';
   };
   el.querySelector('#expCur').onclick=()=>exportData([p]);
@@ -919,7 +986,7 @@ function renderTab(){
 document.querySelectorAll('nav.tabs button').forEach(b=>b.onclick=()=>{ tab=b.dataset.tab; renderTab(); window.scrollTo(0,0); });
 
 /* ============================ Start + Update-Prüfung ============================ */
-const APP_VERSION = '1.5.2';   // bei jeder neuen Version hier UND in version.json hochzählen
+const APP_VERSION = '1.6.0';   // bei jeder neuen Version hier UND in version.json hochzählen
 load(); renderAll();
 
 const updBanner=document.getElementById('updBanner'), updText=document.getElementById('updText'), updBtn=document.getElementById('updBtn');
@@ -953,7 +1020,7 @@ if('serviceWorker' in navigator && location.protocol.startsWith('http')){
 }
 checkUpdate(false);
 document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') checkUpdate(false); });
-window.__test={lbxLabelXml,buildLbxs,makeLbxsFiles,cellsFromRow,rowsFromPhoto,dlgPhoto,S:()=>S,makePdfBlob,makePngFiles,compute,drawPart,splitRow};
+window.__test={wrapText,breakWord,hyphenPoints,fitLbxCells,lbxLabelXml,buildLbxs,makeLbxsFiles,cellsFromRow,rowsFromPhoto,dlgPhoto,S:()=>S,makePdfBlob,makePngFiles,compute,drawPart,splitRow};
 </script>
 </body>
 </html>
