@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b4f8a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Beschriftung">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>Verteiler-Beschriftung</title>
+<style>
+:root{--pri:#0b4f8a;--pri2:#0e6ab8;--bg:#f3f5f8;--card:#fff;--line:#d5dbe3;--txt:#1b2430;--mut:#66748a;--red:#c62828;--grn:#2e7d32;}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--txt);font:15px/1.35 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;-webkit-text-size-adjust:100%}
+body{padding-bottom:calc(64px + env(safe-area-inset-bottom))}
+header.top{position:sticky;top:0;z-index:20;background:var(--pri);color:#fff;padding:calc(8px + env(safe-area-inset-top)) 12px 8px;display:flex;gap:8px;align-items:center}
+header.top select{flex:1;min-width:0;font-size:16px;padding:8px;border-radius:8px;border:0}
+button,.btn{font:inherit;border:0;border-radius:8px;padding:9px 13px;background:var(--pri);color:#fff;cursor:pointer}
+button.sec{background:#e6ebf2;color:var(--txt)}
+button.danger{background:#fde8e8;color:var(--red)}
+button.sm{padding:5px 9px;font-size:13px}
+header.top button{background:rgba(255,255,255,.18)}
+input,select,textarea{font:inherit;font-size:16px;padding:8px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--txt);min-width:0}
+input[type=checkbox]{width:20px;height:20px;padding:0}
+main{padding:10px;max-width:900px;margin:0 auto}
+.tab{display:none}.tab.on{display:block}
+nav.tabs{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);display:flex;padding-bottom:env(safe-area-inset-bottom);z-index:20}
+nav.tabs button{flex:1;background:none;color:var(--mut);border-radius:0;padding:13px 4px;font-weight:600}
+nav.tabs button.on{color:var(--pri);box-shadow:inset 0 3px 0 var(--pri)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px;margin-bottom:12px}
+.rowhead{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.rowhead input.rn{flex:1;min-width:120px;font-weight:700}
+.rowhead .te{width:64px;text-align:center}
+.used{font-size:13px;color:var(--mut)}.used.over{color:var(--red);font-weight:700}
+.item{border:1px solid var(--line);border-left:5px solid #90a4ae;border-radius:10px;padding:8px;margin-top:8px;background:#fbfcfe}
+.item.k-fuse{border-left-color:#0e6ab8}.item.k-fi{border-left-color:#e08a00}.item.k-device{border-left-color:#2e7d32}.item.k-empty{border-left-color:#bbb}
+.ihead{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.badge{background:var(--pri);color:#fff;border-radius:6px;padding:2px 8px;font-weight:700;min-width:44px;text-align:center}
+.item.k-fi .badge{background:#e08a00}.item.k-device .badge{background:#2e7d32}.item.k-empty .badge{background:#999}
+.tname{flex:1;color:var(--mut);font-size:13px}
+.ilines{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:6px}
+.ilines.one{grid-template-columns:1fr}
+.ilines input{width:100%}
+details.more{margin-top:6px;font-size:14px}
+details.more summary{color:var(--mut);cursor:pointer}
+.grid2{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px}
+.addbar{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;align-items:center}
+.addbar select{flex:1;min-width:140px}
+.addbar input[type=number]{width:60px}
+.muted{color:var(--mut);font-size:13px}
+h2{font-size:17px;margin:4px 0 8px}
+.list button{display:block;width:100%;text-align:left;margin-bottom:6px}
+.prevrow{margin-bottom:14px}
+.prevscroll{overflow-x:auto;background:#dfe5ec;padding:8px;border-radius:8px;-webkit-overflow-scrolling:touch}
+.prevscroll canvas{display:block;box-shadow:0 1px 4px rgba(0,0,0,.3);background:#fff}
+.prevlab{font-size:13px;color:var(--mut);margin:0 0 4px}
+dialog{border:0;border-radius:14px;padding:0;width:min(560px,94vw);max-height:88vh;box-shadow:0 8px 40px rgba(0,0,0,.4)}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+.dlg{padding:14px;overflow:auto;max-height:88vh}
+.dlg h3{margin:0 0 10px}
+.dlgbtn{display:flex;gap:8px;justify-content:flex-end;margin-top:12px;flex-wrap:wrap}
+.trow{display:grid;grid-template-columns:1fr 62px 90px 50px 34px;gap:4px;margin-bottom:6px;align-items:center}
+.trow input,.trow select{width:100%;padding:6px}
+.banner{position:fixed;left:10px;right:10px;bottom:calc(70px + env(safe-area-inset-bottom));background:#222;color:#fff;padding:10px 12px;border-radius:10px;z-index:50;display:none;align-items:center;gap:10px}
+.banner.on{display:flex}.banner span{flex:1}
+label.f{display:flex;flex-direction:column;gap:3px;font-size:13px;color:var(--mut)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(80px + env(safe-area-inset-bottom));background:#222;color:#fff;padding:9px 14px;border-radius:20px;z-index:60;font-size:14px;opacity:0;transition:.25s;pointer-events:none}
+.toast.on{opacity:1}
+</style>
+</head>
+<body>
+<header class="top">
+  <select id="projSel" aria-label="Verteiler"></select>
+  <button id="btnNew">+ Neu</button>
+</header>
+<main>
+  <section id="tab-edit" class="tab on"></section>
+  <section id="tab-prev" class="tab"></section>
+  <section id="tab-exp" class="tab"></section>
+  <section id="tab-more" class="tab"></section>
+</main>
+<nav class="tabs">
+  <button data-tab="edit" class="on">Editor</button>
+  <button data-tab="prev">Vorschau</button>
+  <button data-tab="exp">Export</button>
+  <button data-tab="more">Mehr</button>
+</nav>
+<div class="banner" id="updBanner"><span id="updText">Neue Version verfügbar.</span><button id="updBtn">Jetzt aktualisieren</button><button id="updLater" class="sec sm">Später</button></div>
+<div class="toast" id="toast"></div>
+<datalist id="roomsList"></datalist>
+<dialog id="dlg"><div class="dlg" id="dlgBody"></div></dialog>
+
+<script>
+"use strict";
+/* ============================ Konstanten ============================ */
+const TE_MM = 17.55;           // Breite einer Teilungseinheit
+const H_PDF = 21.5;            // Feldhöhe PDF (mm)
+const H_DEV = 18;              // Feldhöhe Beschriftungsgerät (mm)
+const FONT = '"Calibri","Carlito","Segoe UI","Helvetica Neue",Arial,sans-serif';
+const LS_KEY = 'verteilerbeschriftung_v1';
+
+const DEFAULT_TYPES = [
+  {id:'ls1', name:'Sicherung',                 te:1,   kind:'fuse',   prefix:'F'},
+  {id:'fi',  name:'FI-Schutzschalter',         te:4,   kind:'fi',     prefix:'F', detail:'40/0,03A'},
+  {id:'ls3', name:'Sicherungsautomat 3-polig', te:3,   kind:'fuse',   prefix:'F'},
+  {id:'hs',  name:'Hauptschalter',             te:2.5, kind:'device', prefix:''},
+  {id:'sm',  name:'Smartmeter',                te:4,   kind:'device', prefix:''},
+  {id:'sa',  name:'Schaltaktor',               te:12,  kind:'device', prefix:'C'},
+  {id:'rk',  name:'Rollokator',                te:10,  kind:'device', prefix:'R'},
+  {id:'gap', name:'Leerfeld',                  te:1,   kind:'empty',  prefix:''}
+];
+const DEFAULT_ROOMS = ['Bad','Gäste-WC','Küche','Wohnzimmer','Esszimmer','Flur','HWR','Büro','Eltern','Kind','Ankleide','Schlafzimmer','Keller','Garage','Dachboden','Terrasse','Außen','Herd','Backofen','Spülmaschine','Waschmaschine','Trockner','Sat-Anlage','EDV','Heizung','Wärmepumpe','reserve'];
+const KIND_LABEL = {fuse:'Sicherung (nummeriert)', fi:'FI (Gruppenkopf)', device:'Gerät (ein Feld)', empty:'Leerfeld'};
+const PAPER = {'a4l':[297,210,'A4 quer'],'a4p':[210,297,'A4 hoch'],'a3l':[420,297,'A3 quer']};
+
+/* ============================ Zustand ============================ */
+let S;   // gesamter Zustand
+let tab = 'edit';
+const uid = () => Math.random().toString(36).slice(2,9);
+const clone = o => JSON.parse(JSON.stringify(o));
+const esc = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt = n => String(Math.round(n*1000)/1000).replace('.',',');
+
+function newProject(name){
+  return {id:uid(), name:name||'Neuer Verteiler', scheme:'dot', showRest:true,
+          rows:[{id:uid(), name:'Reihe 1', te:12, items:[]}]};
+}
+function load(){
+  try{ const t = localStorage.getItem(LS_KEY); if(t){ S = JSON.parse(t); } }catch(e){}
+  if(!S || !S.projects){
+    S = {projects:[newProject('Verteiler 1')], cur:null, types:clone(DEFAULT_TYPES), rooms:DEFAULT_ROOMS.slice(), templates:[],
+         settings:{paper:'a4l', dpiPdf:600, dpiDev:360, rotate:false, fontScale:100, prevMode:'pdf', prevFit:true}};
+    S.cur = S.projects[0].id;
+  }
+  S.settings = Object.assign({paper:'a4l',dpiPdf:600,dpiDev:360,rotate:false,fontScale:100,prevMode:'pdf',prevFit:true}, S.settings||{});
+  if(!S.projects.find(p=>p.id===S.cur)) S.cur = S.projects[0].id;
+}
+let saveT;
+function save(){ clearTimeout(saveT); saveT = setTimeout(()=>{ try{ localStorage.setItem(LS_KEY, JSON.stringify(S)); }catch(e){ toast('Speichern im Browser fehlgeschlagen'); } }, 200); }
+const P = () => S.projects.find(p=>p.id===S.cur);
+
+function toast(t){ const e=document.getElementById('toast'); e.textContent=t; e.classList.add('on'); clearTimeout(toast.t); toast.t=setTimeout(()=>e.classList.remove('on'),2200); }
+
+/* ============================ Nummerierung ============================ */
+function compute(p){
+  const res = {}; const groups = {};
+  let fi=0, k=0, curFi=null, curPre='F'; const cnt = {};
+  for(const r of p.rows) for(const it of r.items){
+    let id='';
+    if(it.kind==='fi'){
+      fi++; k=0; curFi=it.uid; curPre=it.prefix||'F'; groups[curFi]={first:null,last:null};
+      id = curPre+fi;
+    }else if(it.kind==='fuse'){
+      k++;
+      id = p.scheme==='pre' ? `${fi}${it.prefix||'F'}${k}` : `${curPre}${fi}.${k}`;
+      if(curFi){ const g=groups[curFi]; if(!g.first) g.first=id; g.last=id; }
+    }else if(it.kind==='device'){
+      if(it.prefix){ cnt[it.prefix]=(cnt[it.prefix]||0)+1; id = it.prefix+cnt[it.prefix]; }
+    }
+    if(it.idOv) id = it.idOv;
+    res[it.uid] = {id};
+  }
+  for(const u in groups){ const g=groups[u]; res[u].range = g.first ? (g.first===g.last ? g.first : `${g.first} - ${g.last}`) : ''; }
+  return res;
+}
+const rowUsed = r => r.items.reduce((a,i)=>a+Number(i.te||0),0);
+
+/* ============================ Bauteile / Items ============================ */
+function makeItem(t){
+  const it = {uid:uid(), typeId:t.id, name:t.name, kind:t.kind, prefix:t.prefix||'', te:t.te, lines:['','',''], detail:t.detail||'', idOv:'', autoRange:true};
+  if(t.kind==='device') it.lines[0]=t.name;
+  return it;
+}
+const typeById = id => S.types.find(t=>t.id===id);
+
+/* ============================ Zeichnen ============================ */
+/* Teilt eine Reihe in Teilstücke, die max. maxTE breit sind (Trennung nur zwischen Bauteilen) */
+function splitRow(r, maxTE, showRest){
+  const parts=[]; let cur={items:[],te:0,rest:0};
+  for(const it of r.items){
+    const w = Number(it.te)||0;
+    if(cur.items.length && cur.te + w > maxTE + 1e-6){ parts.push(cur); cur={items:[],te:0,rest:0}; }
+    cur.items.push(it); cur.te += w;
+  }
+  let restTE = showRest ? Math.max(0, r.te - rowUsed(r)) : 0;
+  if(!cur.items.length && !parts.length){ cur.te = 0; }
+  if(restTE>0){
+    if(cur.te + restTE <= maxTE + 1e-6){ cur.rest = restTE; }
+    else { const fit = Math.max(0, maxTE - cur.te); if(fit>0){ cur.rest=fit; restTE-=fit; } parts.push(cur); cur={items:[],te:0,rest:0};
+           while(restTE>0){ const w=Math.min(restTE,maxTE); cur.rest=w; restTE-=w; if(restTE>0){parts.push(cur);cur={items:[],te:0,rest:0};} } }
+  }
+  if(cur.items.length||cur.rest>0||!parts.length) parts.push(cur);
+  parts.forEach(p=>{ p.total = p.te + p.rest; });
+  return parts;
+}
+
+function drawPart(part, hMm, dpi, comp){
+  const ppm = dpi/25.4;
+  const W = Math.max(2,Math.round(part.total*TE_MM*ppm)), H = Math.round(hMm*ppm);
+  const c = document.createElement('canvas'); c.width=W; c.height=H;
+  const g = c.getContext('2d');
+  g.fillStyle='#fff'; g.fillRect(0,0,W,H);
+  const u = hMm/H_PDF*ppm*(S.settings.fontScale/100);        // px pro Design-mm
+  const lw = Math.max(1, Math.round(0.18*ppm));
+  g.strokeStyle='#000'; g.fillStyle='#000'; g.lineWidth=lw; g.textAlign='center'; g.textBaseline='middle';
+  const fields = part.items.map(it=>({it,te:Number(it.te)||0}));
+  if(part.rest>0) fields.push({empty:true,te:part.rest});
+  let cum=0;
+  fields.forEach((f,idx)=>{
+    const x0=Math.round(cum*TE_MM*ppm); cum+=f.te; const x1=Math.round(cum*TE_MM*ppm);
+    if(idx>0){ g.beginPath(); g.moveTo(x0,0); g.lineTo(x0,H); g.stroke(); }
+    if(f.empty) return;
+    const it=f.it, info=comp[it.uid]||{id:''}, cx=(x0+x1)/2, avail=(x1-x0)-2.4*ppm;
+    const L = layoutField(it, info);                    // [{t,bold,y,size}]
+    if(L.line){ g.beginPath(); g.moveTo(x0+1.2*ppm, L.line*H); g.lineTo(x1-1.2*ppm, L.line*H); g.lineWidth=Math.max(1,lw*0.7); g.stroke(); g.lineWidth=lw; }
+    // Schrift gemeinsam für das Feld verkleinern, wenn nötig
+    let fac=1;
+    for(const s of L.texts){ if(!s.t) continue; g.font=`${s.bold?'bold ':''}${s.size*u}px ${FONT}`; const w=g.measureText(s.t).width; if(w>avail) fac=Math.min(fac, avail/w); }
+    fac=Math.max(fac,0.4);
+    for(const s of L.texts){ if(!s.t) continue; g.font=`${s.bold?'bold ':''}${s.size*u*fac}px ${FONT}`; g.fillText(s.t,cx,s.y*H); }
+  });
+  g.strokeRect(lw/2,lw/2,W-lw,H-lw);
+  return c;
+}
+/* Anordnung des Feldinhalts (Anteile der Feldhöhe, wie auf den Musterfotos) */
+function layoutField(it, info){
+  const SZ=3.3, texts=[]; let line=0;
+  const ln = it.lines.map(s=>(s||'').trim());
+  if(it.kind==='fuse'){
+    texts.push({t:info.id,bold:true,y:0.13,size:SZ}); line=0.25;
+    [0,1,2].forEach(i=>texts.push({t:ln[i],bold:false,y:[0.40,0.63,0.86][i],size:SZ}));
+  }else if(it.kind==='fi'){
+    texts.push({t:info.id,bold:true,y:0.13,size:SZ});
+    texts.push({t:`${it.name} ${it.detail||''}`.trim(),bold:true,y:0.40,size:SZ});
+    let y2 = 0.63;
+    if(it.autoRange && info.range){ texts.push({t:`Sicherungen ${info.range}`,bold:false,y:y2,size:SZ}); }
+    else if(ln[0]){ texts.push({t:ln[0],bold:false,y:y2,size:SZ}); }
+    if(ln[1]) texts.push({t:ln[1],bold:false,y:0.86,size:SZ});
+  }else if(it.kind==='device'){
+    const title = `${info.id} ${ln[0]}`.trim();
+    if(ln[1]||ln[2]){
+      texts.push({t:title,bold:true,y:0.28,size:3.6});
+      texts.push({t:ln[1],bold:false,y:0.55,size:SZ}); texts.push({t:ln[2],bold:false,y:0.8,size:SZ});
+    }else texts.push({t:title,bold:true,y:0.5,size:3.6});
+  }
+  return {texts,line};
+}
+
+/* ============================ Editor ============================ */
+function refreshRooms(){
+  document.getElementById('roomsList').innerHTML = S.rooms.map(r=>`<option value="${esc(r)}">`).join('');
+}
+function refreshProjSel(){
+  const s=document.getElementById('projSel');
+  s.innerHTML = S.projects.map(p=>`<option value="${p.id}" ${p.id===S.cur?'selected':''}>${esc(p.name)}</option>`).join('');
+}
+function renderEdit(){
+  const p=P(), comp=compute(p), el=document.getElementById('tab-edit');
+  const typeOpts = S.types.map(t=>`<option value="${t.id}">${esc(t.name)} · ${fmt(t.te)} TE</option>`).join('');
+  const tplOpts = S.templates.map(t=>`<option value="${t.id}">${esc(t.name)} (${t.kind==='row'?'Reihe':'Gruppe'})</option>`).join('');
+  el.innerHTML = p.rows.map((r,ri)=>{
+    const used=rowUsed(r), over=used>r.te+1e-6;
+    return `<div class="card" data-row="${r.id}">
+      <div class="rowhead">
+        <input class="rn" data-f="rname" value="${esc(r.name)}" aria-label="Reihenname">
+        <input class="te" type="number" inputmode="decimal" step="0.5" min="1" data-f="rte" value="${r.te}" aria-label="TE der Reihe"><span class="used">TE</span>
+        <button class="sec sm" data-a="rowup" ${ri===0?'disabled':''}>↑</button>
+        <button class="sec sm" data-a="rowdn" ${ri===p.rows.length-1?'disabled':''}>↓</button>
+        <button class="sec sm" data-a="rowtpl">Als Vorlage</button>
+        <button class="danger sm" data-a="rowdel">✕</button>
+      </div>
+      <div class="used ${over?'over':''}">${fmt(used)} von ${fmt(r.te)} TE belegt · ${over?'ZU VIEL: '+fmt(used-r.te)+' TE':'frei: '+fmt(r.te-used)+' TE'}</div>
+      ${r.items.map((it,ii)=>itemHtml(it,ii,r,comp)).join('')}
+      <div class="addbar">
+        <select data-f="addtype">${typeOpts}</select>
+        <input type="number" inputmode="numeric" min="1" max="60" value="1" data-f="addqty" aria-label="Anzahl">
+        <button data-a="add">+ Hinzufügen</button>
+      </div>
+      <div class="addbar">
+        <button class="sec sm" data-a="figroup">FI + Sicherungen</button>
+        <button class="sec sm" data-a="free">Freies Bauteil</button>
+        ${S.templates.length?`<select data-f="addtpl">${tplOpts}</select><button class="sec sm" data-a="instpl">Vorlage einfügen</button>`:''}
+      </div>
+    </div>`;
+  }).join('') + `<div class="addbar"><button data-a="rowadd">+ Reihe hinzufügen</button>${S.templates.some(t=>t.kind==='row')?'<button class="sec" data-a="rowfromtpl">+ Reihe aus Vorlage</button>':''}</div>`;
+}
+function itemHtml(it,ii,r,comp){
+  const info=comp[it.uid]||{id:''};
+  const rl = 'list="roomsList"';
+  let body='';
+  if(it.kind==='fuse'){
+    body = `<div class="ilines">${[0,1,2].map(i=>`<input ${rl} data-l="${i}" value="${esc(it.lines[i])}" placeholder="${i===0?'Raum / Bez.':''}" aria-label="Zeile ${i+1}">`).join('')}</div>`;
+  }else if(it.kind==='fi'){
+    body = `<div class="grid2"><label class="f" style="flex:1">Nennwerte (z. B. 40/0,03A)<input data-d="detail" value="${esc(it.detail)}"></label>
+            <label class="f" style="flex:1">Zusatzzeile<input ${rl} data-l="0" value="${esc(it.lines[0])}" placeholder="${it.autoRange?'(automatisch: Sicherungsbereich)':''}"></label></div>
+            <div class="muted" style="margin-top:4px">${info.range?`Zugehörige Sicherungen: ${esc(info.range)}`:'Noch keine Sicherungen nach diesem FI.'}</div>`;
+  }else if(it.kind==='device'){
+    body = `<div class="ilines one"><input ${rl} data-l="0" value="${esc(it.lines[0])}" placeholder="Bezeichnung (z. B. Schaltaktor Flur)"></div>
+            <div class="ilines" style="grid-template-columns:1fr 1fr"><input ${rl} data-l="1" value="${esc(it.lines[1])}" placeholder="Zusatzzeile 1"><input ${rl} data-l="2" value="${esc(it.lines[2])}" placeholder="Zusatzzeile 2"></div>`;
+  }
+  return `<div class="item k-${it.kind}" data-uid="${it.uid}">
+    <div class="ihead"><span class="badge">${esc(info.id||'–')}</span><span class="tname">${esc(it.name)} · ${fmt(it.te)} TE</span>
+      <button class="sec sm" data-a="iup">↑</button><button class="sec sm" data-a="idn">↓</button><button class="sec sm" data-a="idup">⧉</button><button class="danger sm" data-a="idel">✕</button></div>
+    ${body}
+    <details class="more"><summary>Weitere Optionen</summary><div class="grid2">
+      <label class="f">Nummer manuell<input data-d="idOv" value="${esc(it.idOv)}" placeholder="${esc(info.id)}" style="width:110px"></label>
+      <label class="f">Breite (TE)<input type="number" step="0.5" inputmode="decimal" data-d="te" value="${it.te}" style="width:90px"></label>
+      ${it.kind==='fi'?`<label class="f">Sicherungsbereich zeigen<input type="checkbox" data-d="autoRange" ${it.autoRange?'checked':''}></label>`:''}
+    </div></details></div>`;
+}
+
+function findItem(u){ const p=P(); for(const r of p.rows){ const i=r.items.findIndex(x=>x.uid===u); if(i>=0) return {r,i,it:r.items[i]}; } return null; }
+function addRoomIfNew(v){ v=(v||'').trim(); if(v && !S.rooms.some(x=>x.toLowerCase()===v.toLowerCase()) && v.length<=30){ S.rooms.push(v); refreshRooms(); } }
+
+document.getElementById('tab-edit').addEventListener('input',e=>{
+  const t=e.target, itEl=t.closest('.item'), rowEl=t.closest('[data-row]'); if(!rowEl) return;
+  const p=P(), r=p.rows.find(x=>x.id===rowEl.dataset.row);
+  if(t.dataset.f==='rname'){ r.name=t.value; save(); return; }
+  if(itEl){ const f=findItem(itEl.dataset.uid); if(!f) return;
+    if(t.dataset.l!==undefined){ f.it.lines[+t.dataset.l]=t.value; save(); }
+    else if(t.dataset.d==='detail'){ f.it.detail=t.value; save(); } }
+});
+document.getElementById('tab-edit').addEventListener('change',e=>{
+  const t=e.target, itEl=t.closest('.item'), rowEl=t.closest('[data-row]'); if(!rowEl) return;
+  const p=P(), r=p.rows.find(x=>x.id===rowEl.dataset.row);
+  if(t.dataset.f==='rte'){ r.te=Math.max(1,parseFloat(String(t.value).replace(',','.'))||1); save(); renderEdit(); return; }
+  if(itEl){ const f=findItem(itEl.dataset.uid); if(!f) return;
+    if(t.dataset.l!==undefined){ addRoomIfNew(t.value); }
+    else if(t.dataset.d==='idOv'){ f.it.idOv=t.value.trim(); save(); renderEdit(); }
+    else if(t.dataset.d==='te'){ f.it.te=Math.max(0.5,parseFloat(String(t.value).replace(',','.'))||1); save(); renderEdit(); }
+    else if(t.dataset.d==='autoRange'){ f.it.autoRange=t.checked; save(); renderEdit(); }
+    save(); }
+});
+document.getElementById('tab-edit').addEventListener('click',e=>{
+  const b=e.target.closest('button[data-a]'); if(!b) return;
+  const a=b.dataset.a, p=P(), rowEl=b.closest('[data-row]'), r=rowEl&&p.rows.find(x=>x.id===rowEl.dataset.row), itEl=b.closest('.item');
+  const ri = r?p.rows.indexOf(r):-1;
+  if(a==='rowadd'){ p.rows.push({id:uid(),name:'Reihe '+(p.rows.length+1),te:p.rows.length?p.rows[p.rows.length-1].te:12,items:[]}); }
+  else if(a==='rowdel'){ if(confirm(`„${r.name}“ mit allen Bauteilen löschen?`)) p.rows.splice(ri,1); else return; if(!p.rows.length) p.rows.push({id:uid(),name:'Reihe 1',te:12,items:[]}); }
+  else if(a==='rowup'&&ri>0){ [p.rows[ri-1],p.rows[ri]]=[p.rows[ri],p.rows[ri-1]]; }
+  else if(a==='rowdn'&&ri<p.rows.length-1){ [p.rows[ri+1],p.rows[ri]]=[p.rows[ri],p.rows[ri+1]]; }
+  else if(a==='add'){
+    const t=typeById(rowEl.querySelector('[data-f=addtype]').value), q=Math.max(1,Math.min(60,+rowEl.querySelector('[data-f=addqty]').value||1));
+    for(let i=0;i<q;i++) r.items.push(makeItem(t));
+  }
+  else if(a==='figroup'){ dlgFiGroup(r); return; }
+  else if(a==='free'){ dlgFree(r); return; }
+  else if(a==='instpl'){ const t=S.templates.find(x=>x.id===rowEl.querySelector('[data-f=addtpl]').value); if(t) insertTemplate(r,t); }
+  else if(a==='rowfromtpl'){ dlgRowFromTpl(); return; }
+  else if(a==='rowtpl'){ dlgSaveTpl('row', r, r.items); return; }
+  else if(itEl){
+    const f=findItem(itEl.dataset.uid); if(!f) return;
+    if(a==='idel'){ f.r.items.splice(f.i,1); }
+    else if(a==='idup'){ const c=clone(f.it); c.uid=uid(); c.lines=['','','']; if(c.kind==='device') c.lines[0]=f.it.lines[0]; c.idOv=''; f.r.items.splice(f.i+1,0,c); }
+    else if(a==='iup'){ if(f.i>0){ [f.r.items[f.i-1],f.r.items[f.i]]=[f.r.items[f.i],f.r.items[f.i-1]]; } else { const rj=p.rows.indexOf(f.r); if(rj>0){ f.r.items.splice(f.i,1); p.rows[rj-1].items.push(f.it); } } }
+    else if(a==='idn'){ if(f.i<f.r.items.length-1){ [f.r.items[f.i+1],f.r.items[f.i]]=[f.r.items[f.i],f.r.items[f.i+1]]; } else { const rj=p.rows.indexOf(f.r); if(rj<p.rows.length-1){ f.r.items.splice(f.i,1); p.rows[rj+1].items.unshift(f.it); } } }
+  }
+  save(); renderEdit();
+});
+
+/* ---- Vorlagen ---- */
+function insertTemplate(r, t){
+  const items = clone(t.items).map(i=>{ i.uid=uid(); if(i.kind==='fuse'){ i.lines=['','','']; } i.idOv=''; return i; });
+  r.items.push(...items);
+}
+function dlgSaveTpl(kind, r, items){
+  openDlg(`<h3>Als Vorlage speichern</h3><p class="muted">Gespeichert werden Aufbau und Bauteile. Räume/Bezeichnungen der Sicherungen werden geleert – nur diese trägst du später ein.</p>
+    <label class="f">Name der Vorlage<input id="tplName" value="${esc(kind==='row'?r.name:'FI-Gruppe')}"></label>
+    <div class="dlgbtn"><button class="sec" data-close>Abbrechen</button><button id="ok">Speichern</button></div>`,
+  d=>{ d.querySelector('#ok').onclick=()=>{ const n=d.querySelector('#tplName').value.trim()||'Vorlage';
+      S.templates.push({id:uid(),name:n,kind,te:r.te,items:clone(items).map(i=>{ if(i.kind==='fuse') i.lines=['','','']; i.idOv=''; return i; })});
+      save(); closeDlg(); renderEdit(); toast('Vorlage gespeichert'); }; });
+}
+function dlgRowFromTpl(){
+  const rowTpls=S.templates.filter(t=>t.kind==='row');
+  openDlg(`<h3>Reihe aus Vorlage</h3><div class="list">${rowTpls.map(t=>`<button class="sec" data-t="${t.id}">${esc(t.name)} <span class="muted">· ${fmt(t.te)} TE, ${t.items.length} Bauteile</span></button>`).join('')}</div><div class="dlgbtn"><button class="sec" data-close>Abbrechen</button></div>`,
+  d=>{ d.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{ const t=S.templates.find(x=>x.id===b.dataset.t); const p=P();
+      const r={id:uid(),name:t.name,te:t.te,items:[]}; insertTemplate(r,t); p.rows.push(r); save(); closeDlg(); renderEdit(); }); });
+}
+function dlgFiGroup(r){
+  openDlg(`<h3>FI + Sicherungen</h3><div class="grid2"><label class="f">Anzahl Sicherungen<input id="n" type="number" min="0" max="60" value="8" inputmode="numeric"></label>
+    <label class="f">Nennwerte FI<input id="det" value="${esc(typeById('fi')?.detail||'40/0,03A')}"></label></div>
+    <div class="dlgbtn"><button class="sec" data-close>Abbrechen</button><button id="ok">Einfügen</button></div>`,
+  d=>{ d.querySelector('#ok').onclick=()=>{ const n=Math.max(0,Math.min(60,+d.querySelector('#n').value||0));
+      const fiT=S.types.find(t=>t.kind==='fi')||DEFAULT_TYPES[1], fuT=typeById('ls1')||S.types.find(t=>t.kind==='fuse')||DEFAULT_TYPES[0];
+      const fi=makeItem(fiT); fi.detail=d.querySelector('#det').value; r.items.push(fi);
+      for(let i=0;i<n;i++) r.items.push(makeItem(fuT)); save(); closeDlg(); renderEdit(); }; });
+}
+function dlgFree(r){
+  openDlg(`<h3>Freies Bauteil</h3>
+    <div class="grid2"><label class="f" style="flex:2">Name<input id="nm" placeholder="z. B. Dimmaktor"></label><label class="f" style="flex:1">Breite (TE)<input id="te" type="number" step="0.5" value="4" inputmode="decimal"></label></div>
+    <div class="grid2"><label class="f">Art<select id="kd"><option value="device">Gerät (ein Feld, z. B. D4 Dimmaktor)</option><option value="fuse">Sicherung (nummeriert F1.x)</option><option value="empty">Leerfeld</option></select></label>
+    <label class="f">Kennbuchstabe<input id="pf" style="width:80px" placeholder="z. B. D" maxlength="3"></label></div>
+    <label class="grid2"><input type="checkbox" id="sv" checked> in Bauteilliste speichern</label>
+    <div class="dlgbtn"><button class="sec" data-close>Abbrechen</button><button id="ok">Einfügen</button></div>`,
+  d=>{ d.querySelector('#ok').onclick=()=>{ const nm=d.querySelector('#nm').value.trim(); if(!nm){ toast('Bitte einen Namen angeben'); return; }
+      const t={id:uid(),name:nm,te:Math.max(0.5,parseFloat(String(d.querySelector('#te').value).replace(',','.'))||1),kind:d.querySelector('#kd').value,prefix:d.querySelector('#pf').value.trim()};
+      if(t.kind==='fuse'&&!t.prefix) t.prefix='F';
+      if(d.querySelector('#sv').checked) S.types.push(t);
+      r.items.push(makeItem(t)); save(); closeDlg(); renderEdit(); }; });
+}
+
+/* ============================ Dialoge ============================ */
+const dlg=document.getElementById('dlg'), dlgBody=document.getElementById('dlgBody');
+function openDlg(html, init){ dlgBody.innerHTML=html; dlgBody.querySelectorAll('[data-close]').forEach(b=>b.onclick=closeDlg); init&&init(dlgBody); if(!dlg.open) dlg.showModal(); }
+function closeDlg(){ if(dlg.open) dlg.close(); }
+dlg.addEventListener('click',e=>{ if(e.target===dlg) closeDlg(); });
+
+function dlgTypes(){
+  const draw=()=>{
+    dlgBody.innerHTML=`<h3>Bauteilliste</h3><p class="muted">Name · Breite in TE (z. B. 2,5) · Art · Kennbuchstabe. Änderungen gelten für neu hinzugefügte Bauteile.</p>
+    ${S.types.map((t,i)=>`<div class="trow" data-i="${i}">
+      <input data-k="name" value="${esc(t.name)}"><input data-k="te" type="number" step="0.5" inputmode="decimal" value="${t.te}">
+      <select data-k="kind">${Object.entries(KIND_LABEL).map(([k,v])=>`<option value="${k}" ${t.kind===k?'selected':''}>${v.split(' ')[0]}</option>`).join('')}</select>
+      <input data-k="prefix" value="${esc(t.prefix||'')}" maxlength="3"><button class="danger sm" data-del>✕</button></div>`).join('')}
+    <div class="dlgbtn"><button class="sec" id="add">+ Bauteil</button><button class="sec" id="rst">Standard ergänzen</button><button id="ok">Fertig</button></div>`;
+    dlgBody.querySelectorAll('.trow').forEach(row=>{ const i=+row.dataset.i;
+      row.querySelectorAll('[data-k]').forEach(inp=>inp.onchange=()=>{ const k=inp.dataset.k; let v=inp.value; if(k==='te') v=Math.max(0.5,parseFloat(String(v).replace(',','.'))||1); S.types[i][k]=v; save(); });
+      row.querySelector('[data-del]').onclick=()=>{ S.types.splice(i,1); save(); draw(); }; });
+    dlgBody.querySelector('#add').onclick=()=>{ S.types.push({id:uid(),name:'Neues Bauteil',te:1,kind:'device',prefix:''}); save(); draw(); };
+    dlgBody.querySelector('#rst').onclick=()=>{ DEFAULT_TYPES.forEach(d=>{ if(!S.types.some(t=>t.id===d.id)) S.types.push(clone(d)); }); save(); draw(); };
+    dlgBody.querySelector('#ok').onclick=()=>{ closeDlg(); renderAll(); };
+  }; draw(); if(!dlg.open) dlg.showModal();
+}
+function dlgRooms(){
+  openDlg(`<h3>Räume / Bezeichnungen</h3><p class="muted">Ein Eintrag pro Zeile – erscheint als Auswahlliste in den Feldern. Neu getippte Begriffe werden automatisch ergänzt.</p>
+    <textarea id="ta" rows="14" style="width:100%">${esc(S.rooms.join('\n'))}</textarea>
+    <div class="dlgbtn"><button class="sec" data-close>Abbrechen</button><button id="ok">Speichern</button></div>`,
+  d=>{ d.querySelector('#ok').onclick=()=>{ S.rooms=[...new Set(d.querySelector('#ta').value.split('\n').map(s=>s.trim()).filter(Boolean))]; refreshRooms(); save(); closeDlg(); }; });
+}
+function dlgTemplates(){
+  const draw=()=>{
+    dlgBody.innerHTML=`<h3>Vorlagen</h3>${S.templates.length?S.templates.map((t,i)=>`<div class="grid2" data-i="${i}"><input value="${esc(t.name)}" style="flex:1" data-n><span class="muted">${t.kind==='row'?'Reihe':'Gruppe'} · ${t.items.length} Bauteile</span><button class="danger sm" data-del>✕</button></div>`).join(''):'<p class="muted">Noch keine Vorlagen. In der Reihe auf „Als Vorlage“ tippen.</p>'}
+    <div class="dlgbtn"><button id="ok">Fertig</button></div>`;
+    dlgBody.querySelectorAll('[data-i]').forEach(row=>{ const i=+row.dataset.i;
+      row.querySelector('[data-n]').onchange=e=>{ S.templates[i].name=e.target.value; save(); };
+      row.querySelector('[data-del]').onclick=()=>{ S.templates.splice(i,1); save(); draw(); }; });
+    dlgBody.querySelector('#ok').onclick=()=>{ closeDlg(); renderAll(); };
+  }; draw(); if(!dlg.open) dlg.showModal();
+}
+
+/* ============================ Verteiler-Verwaltung ============================ */
+document.getElementById('projSel').onchange=e=>{ S.cur=e.target.value; save(); renderAll(); };
+document.getElementById('btnNew').onclick=()=>{
+  openDlg(`<h3>Neuer Verteiler</h3><label class="f">Name<input id="nm" placeholder="z. B. UV Haus Müller"></label>
+    <div class="dlgbtn"><button class="sec" data-close>Abbrechen</button><button id="ok">Anlegen</button></div>`,
+  d=>{ d.querySelector('#ok').onclick=()=>{ const p=newProject(d.querySelector('#nm').value.trim()||'Neuer Verteiler'); S.projects.push(p); S.cur=p.id; save(); closeDlg(); renderAll(); }; });
+};
+
+/* ============================ Vorschau ============================ */
+function renderPrev(){
+  const p=P(), comp=compute(p), s=S.settings, el=document.getElementById('tab-prev');
+  const hMm = s.prevMode==='dev'?H_DEV:H_PDF;
+  el.innerHTML=`<div class="card"><div class="grid2" style="margin:0">
+    <label class="f">Ansicht<select id="pm"><option value="pdf" ${s.prevMode==='pdf'?'selected':''}>PDF (Höhe 21,5 mm)</option><option value="dev" ${s.prevMode==='dev'?'selected':''}>Beschriftungsgerät (Höhe 18 mm)</option></select></label>
+    <label class="f">Breite<select id="pf"><option value="1" ${s.prevFit?'selected':''}>An Bildschirm anpassen</option><option value="0" ${!s.prevFit?'selected':''}>Groß (scrollen)</option></select></label></div></div><div id="pv"></div>`;
+  const host=el.querySelector('#pv');
+  p.rows.forEach(r=>{
+    const div=document.createElement('div'); div.className='prevrow';
+    const wmm=Math.max(r.te, p.showRest?0:rowUsed(r))*TE_MM;
+    div.innerHTML=`<p class="prevlab"><b>${esc(r.name)}</b> · ${fmt(r.te)} TE · ${fmt(Math.round(r.te*TE_MM*10)/10)} mm × ${fmt(hMm)} mm</p>`;
+    const sc=document.createElement('div'); sc.className='prevscroll';
+    const parts=splitRow(r,9999,p.showRest); const c=drawPart(parts[0],hMm,200,comp);
+    c.style.width = s.prevFit? '100%' : (parts[0].total*TE_MM*3.2)+'px'; c.style.height='auto';
+    sc.appendChild(c); div.appendChild(sc); host.appendChild(div);
+  });
+  el.querySelector('#pm').onchange=e=>{ s.prevMode=e.target.value; save(); renderPrev(); };
+  el.querySelector('#pf').onchange=e=>{ s.prevFit=e.target.value==='1'; save(); renderPrev(); };
+}
+
+/* ============================ PDF-Erzeugung (ohne Bibliothek) ============================ */
+function latin1(str){ const out=[]; for(const ch of str){ let c=ch.codePointAt(0); if(c===0x2013) c=0x96; else if(c===0x2014) c=0x97; else if(c>255) c=63; out.push(c); } return out; }
+const pdfEsc = s => s.replace(/\\/g,'\\\\').replace(/\(/g,'\\(').replace(/\)/g,'\\)');
+function b64bytes(dataUrl){ const b=atob(dataUrl.split(',')[1]); const u=new Uint8Array(b.length); for(let i=0;i<b.length;i++) u[i]=b.charCodeAt(i); return u; }
+
+function buildPDF(pages){
+  const chunks=[]; let pos=0; const offs=[];
+  const push=(d)=>{ const u = typeof d==='string'? Uint8Array.from(latin1(d)) : d; chunks.push(u); pos+=u.length; };
+  const objs=[]; // {dict, stream}
+  const add=(dict,stream)=>{ objs.push({dict,stream}); return objs.length; };
+  const catalogId=add('',null), pagesId=add('',null);
+  const f1=add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>');
+  const f2=add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>');
+  const pageIds=[]; const pt = mm=>mm*72/25.4;
+  for(const pg of pages){
+    const imgRes=[]; let content='';
+    pg.ops.forEach((op,i)=>{
+      if(op.type==='img'){
+        const id=add(`<< /Type /XObject /Subtype /Image /Width ${op.w} /Height ${op.h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${op.bytes.length} >>`, op.bytes);
+        imgRes.push([`Im${i}`,id]);
+        content += `q ${pt(op.wmm).toFixed(3)} 0 0 ${pt(op.hmm).toFixed(3)} ${pt(op.x).toFixed(3)} ${pt(pg.h-op.y-op.hmm).toFixed(3)} cm /Im${i} Do Q\n`;
+      }else if(op.type==='text'){
+        content += `BT /${op.bold?'F2':'F1'} ${op.size} Tf ${pt(op.x).toFixed(3)} ${pt(pg.h-op.y).toFixed(3)} Td (${pdfEsc(op.text)}) Tj ET\n`;
+      }else if(op.type==='marks'){
+        const {x,y,w,h}=op, o=1.5, l=3; // Schnittmarken
+        const seg=(x1,y1,x2,y2)=>`${pt(x1).toFixed(3)} ${pt(pg.h-y1).toFixed(3)} m ${pt(x2).toFixed(3)} ${pt(pg.h-y2).toFixed(3)} l S\n`;
+        content += '0.25 w 0 G\n';
+        [[x,y,-1,-1],[x+w,y,1,-1],[x,y+h,-1,1],[x+w,y+h,1,1]].forEach(([cx,cy,sx,sy])=>{
+          content += seg(cx+sx*o,cy,cx+sx*(o+l),cy) + seg(cx,cy+sy*o,cx,cy+sy*(o+l)); });
+      }
+    });
+    const cid=add(`<< /Length ${latin1(content).length} >>`, Uint8Array.from(latin1(content)));
+    const xo=imgRes.map(([n,id])=>`/${n} ${id} 0 R`).join(' ');
+    pageIds.push(add(`<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 ${pt(pg.w).toFixed(3)} ${pt(pg.h).toFixed(3)}] /Resources << /Font << /F1 ${f1} 0 R /F2 ${f2} 0 R >> /XObject << ${xo} >> >> /Contents ${cid} 0 R >>`));
+  }
+  objs[catalogId-1].dict=`<< /Type /Catalog /Pages ${pagesId} 0 R >>`;
+  objs[pagesId-1].dict=`<< /Type /Pages /Kids [${pageIds.map(i=>i+' 0 R').join(' ')}] /Count ${pageIds.length} >>`;
+  push('%PDF-1.4\n%\xE2\xE3\xCF\xD3\n');
+  objs.forEach((o,i)=>{ offs[i]=pos; push(`${i+1} 0 obj\n${o.dict}\n`); if(o.stream){ push('stream\n'); push(o.stream); push('\nendstream\n'); } push('endobj\n'); });
+  const xr=pos; push(`xref\n0 ${objs.length+1}\n0000000000 65535 f \n`);
+  offs.forEach(o=>push(String(o).padStart(10,'0')+' 00000 n \n'));
+  push(`trailer\n<< /Size ${objs.length+1} /Root ${catalogId} 0 R >>\nstartxref\n${xr}\n%%EOF`);
+  return new Blob(chunks,{type:'application/pdf'});
+}
+
+async function makePdfBlob(){
+  const p=P(), s=S.settings, comp=compute(p), [PW,PH]=PAPER[s.paper]; const M=12, hdr=16, labH=6, gap=9;
+  const maxTE = Math.floor((PW-2*M)/TE_MM*2)/2;      // auf halbe TE abgerundet
+  const pages=[]; let pg=null, y=0;
+  const newPage=()=>{ pg={w:PW,h:PH,ops:[]}; pages.push(pg);
+    pg.ops.push({type:'text',bold:true,size:13,x:M,y:M+4,text:p.name});
+    pg.ops.push({type:'text',bold:false,size:8,x:M,y:M+9.5,text:`Beschriftungsfelder in Originalgröße (1 TE = ${TE_MM.toString().replace('.',',')} mm, Feldhöhe ${fmt(H_PDF)} mm) - mit 100 % / "Tatsächliche Größe" drucken, NICHT auf Seite skalieren.`});
+    y=M+hdr; };
+  newPage();
+  for(const r of p.rows){
+    const parts=splitRow(r,maxTE,p.showRest);
+    for(let i=0;i<parts.length;i++){
+      if(y+labH+H_PDF+gap > PH-M) newPage();
+      const part=parts[i]; if(part.total<=0) continue;
+      const cv=drawPart(part,H_PDF,s.dpiPdf,comp);
+      const bytes=b64bytes(cv.toDataURL('image/jpeg',0.95));
+      const wmm=part.total*TE_MM;
+      pg.ops.push({type:'text',bold:true,size:8.5,x:M+4,y:y+3.5,text:`${r.name}${parts.length>1?` (Teil ${i+1}/${parts.length})`:''}  -  ${fmt(part.total)} TE = ${fmt(Math.round(wmm*10)/10)} mm x ${fmt(H_PDF)} mm`});
+      pg.ops.push({type:'img',bytes,w:cv.width,h:cv.height,x:M,y:y+labH,wmm,hmm:H_PDF});
+      pg.ops.push({type:'marks',x:M,y:y+labH,w:wmm,h:H_PDF});
+      y += labH+H_PDF+gap;
+      await new Promise(r=>setTimeout(r));
+    }
+  }
+  return buildPDF(pages);
+}
+
+/* ============================ Geräte-Export (PNG) ============================ */
+function canvasToBlob(c){ return new Promise(res=>c.toBlob(res,'image/png')); }
+async function makePngFiles(){
+  const p=P(), s=S.settings, comp=compute(p), files=[];
+  for(const r of p.rows){
+    const parts=splitRow(r,9999,p.showRest);
+    for(let i=0;i<parts.length;i++){
+      if(parts[i].total<=0) continue;
+      let cv=drawPart(parts[i],H_DEV,s.dpiDev,comp);
+      if(s.rotate){ const rc=document.createElement('canvas'); rc.width=cv.height; rc.height=cv.width; const g=rc.getContext('2d'); g.translate(0,rc.height); g.rotate(-Math.PI/2); g.drawImage(cv,0,0); cv=rc; }
+      const blob=await canvasToBlob(cv);
+      files.push(new File([blob], safeName(`${p.name}_${r.name}${parts.length>1?'_'+(i+1):''}_${fmt(r.te)}TE_18mm.png`), {type:'image/png'}));
+    }
+  }
+  return files;
+}
+const safeName = s => s.replace(/[^\wäöüÄÖÜß.\-]+/g,'_').replace(/_+/g,'_');
+function today(){ const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function downloadBlob(blob,name){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },4000); }
+async function shareOrDownload(files){
+  try{
+    if(navigator.canShare && navigator.canShare({files})){ await navigator.share({files}); return; }
+  }catch(e){ if(e.name==='AbortError') return; }
+  for(const f of files){ downloadBlob(f,f.name); await new Promise(r=>setTimeout(r,400)); }
+}
+
+/* ============================ Export / Mehr ============================ */
+function renderExp(){
+  const p=P(), s=S.settings, el=document.getElementById('tab-exp');
+  el.innerHTML=`
+  <div class="card"><h2>PDF zum Ausdrucken</h2>
+    <div class="grid2"><label class="f">Papier<select id="paper">${Object.entries(PAPER).map(([k,v])=>`<option value="${k}" ${s.paper===k?'selected':''}>${v[2]}</option>`).join('')}</select></label>
+    <label class="f">Auflösung<select id="dpiPdf">${[300,600,900].map(d=>`<option ${s.dpiPdf===d?'selected':''} value="${d}">${d} dpi</option>`).join('')}</select></label></div>
+    <p class="muted">Feldhöhe ${fmt(H_PDF)} mm, 1 TE = ${String(TE_MM).replace('.',',')} mm. Reihen, die breiter als das Papier sind, werden zwischen zwei Bauteilen geteilt. Beim Drucken auf „Tatsächliche Größe“ / 100 % stellen.</p>
+    <div class="grid2"><button id="mkPdf">PDF erstellen</button></div><div id="pdfOut" class="muted" style="margin-top:8px"></div></div>
+  <div class="card"><h2>Beschriftungsgerät (Brother P-touch)</h2>
+    <div class="grid2"><label class="f">Auflösung<select id="dpiDev">${[180,360,720].map(d=>`<option ${s.dpiDev===d?'selected':''} value="${d}">${d} dpi</option>`).join('')}</select></label>
+    <label class="f">Bild um 90° drehen<input type="checkbox" id="rot" ${s.rotate?'checked':''}></label></div>
+    <p class="muted">Pro Reihe entsteht ein PNG mit ${fmt(H_DEV)} mm Höhe und der exakten Breite (TE × ${String(TE_MM).replace('.',',')} mm). Über „Teilen“ direkt in die Brother-App / P-touch-Software senden oder speichern.</p>
+    <div class="grid2"><button id="mkPng">PNG teilen / speichern</button></div></div>
+  <div class="card"><h2>Datensicherung</h2>
+    <p class="muted">Exportiert Verteiler, Bauteilliste, Räume und Vorlagen als Datei. Beim Einlesen wird zusammengeführt – vorhandene Daten bleiben erhalten.</p>
+    <div class="grid2"><button class="sec" id="expCur">Diesen Verteiler sichern</button><button class="sec" id="expAll">Alles sichern</button><button class="sec" id="impBtn">Datei einlesen</button></div>
+    <input type="file" id="impFile" accept=".json,application/json" hidden></div>`;
+  el.querySelector('#paper').onchange=e=>{ s.paper=e.target.value; save(); };
+  el.querySelector('#dpiPdf').onchange=e=>{ s.dpiPdf=+e.target.value; save(); };
+  el.querySelector('#dpiDev').onchange=e=>{ s.dpiDev=+e.target.value; save(); };
+  el.querySelector('#rot').onchange=e=>{ s.rotate=e.target.checked; save(); };
+  el.querySelector('#mkPdf').onclick=async e=>{
+    const b=e.target; b.disabled=true; b.textContent='Erstelle …';
+    try{ const blob=await makePdfBlob(); const f=new File([blob], safeName(`Beschriftung_${p.name}_${today()}.pdf`), {type:'application/pdf'});
+      const out=el.querySelector('#pdfOut'); const url=URL.createObjectURL(blob);
+      out.innerHTML=`Fertig (${Math.round(blob.size/1024)} kB): <a href="${url}" target="_blank" rel="noopener">PDF öffnen</a> · <a href="#" id="pdfShare">Teilen / Speichern</a>`;
+      out.querySelector('#pdfShare').onclick=ev=>{ ev.preventDefault(); shareOrDownload([f]); };
+    }catch(err){ console.error(err); toast('PDF-Fehler: '+err.message); }
+    b.disabled=false; b.textContent='PDF erstellen';
+  };
+  el.querySelector('#mkPng').onclick=async e=>{
+    const b=e.target; b.disabled=true; b.textContent='Erstelle …';
+    try{ const files=await makePngFiles(); if(!files.length) toast('Keine Felder vorhanden'); else await shareOrDownload(files); }catch(err){ console.error(err); toast('Fehler: '+err.message); }
+    b.disabled=false; b.textContent='PNG teilen / speichern';
+  };
+  el.querySelector('#expCur').onclick=()=>exportData([p]);
+  el.querySelector('#expAll').onclick=()=>exportData(S.projects);
+  el.querySelector('#impBtn').onclick=()=>el.querySelector('#impFile').click();
+  el.querySelector('#impFile').onchange=async e=>{ const f=e.target.files[0]; if(!f) return; try{ importData(JSON.parse(await f.text())); }catch(err){ toast('Datei nicht lesbar'); } e.target.value=''; };
+}
+function exportData(projects){
+  const data={app:'verteilerbeschriftung',version:1,exported:new Date().toISOString(),projects,types:S.types,rooms:S.rooms,templates:S.templates};
+  const blob=new Blob([JSON.stringify(data,null,1)],{type:'application/json'});
+  const name=safeName(projects.length===1?`Verteiler_${projects[0].name}_${today()}.json`:`Verteilerbeschriftung_Sicherung_${today()}.json`);
+  shareOrDownload([new File([blob],name,{type:'application/json'})]);
+}
+function importData(d){
+  if(!d||d.app!=='verteilerbeschriftung') throw new Error('bad');
+  let np=0;
+  (d.projects||[]).forEach(p=>{ if(S.projects.some(x=>x.id===p.id)){ p.id=uid(); p.name+=' (Import)'; } S.projects.push(p); np++; });
+  (d.types||[]).forEach(t=>{ if(!S.types.some(x=>x.id===t.id)) S.types.push(t); });
+  (d.rooms||[]).forEach(r=>{ if(!S.rooms.some(x=>x.toLowerCase()===String(r).toLowerCase())) S.rooms.push(r); });
+  (d.templates||[]).forEach(t=>{ if(!S.templates.some(x=>x.id===t.id)) S.templates.push(t); });
+  if(np) S.cur=S.projects[S.projects.length-1].id;
+  save(); renderAll(); toast(`Eingelesen: ${np} Verteiler`);
+}
+
+function renderMore(){
+  const p=P(), el=document.getElementById('tab-more');
+  el.innerHTML=`
+  <div class="card"><h2>Verteiler „${esc(p.name)}“</h2>
+    <label class="f">Name<input id="pn" value="${esc(p.name)}"></label>
+    <div class="grid2"><label class="f">Nummerierung<select id="sch"><option value="dot" ${p.scheme==='dot'?'selected':''}>F1 → F1.1, F1.2, …</option><option value="pre" ${p.scheme==='pre'?'selected':''}>F1 → 1F1, 1F2, …</option></select></label>
+    <label class="f">Restliche TE als leeres Feld<input type="checkbox" id="rest" ${p.showRest?'checked':''}></label></div>
+    <label class="f" style="margin-top:8px">Schriftgröße: ${S.settings.fontScale} %<input type="range" id="fs" min="70" max="130" step="5" value="${S.settings.fontScale}"></label>
+    <div class="grid2" style="margin-top:10px"><button class="sec" id="dup">Duplizieren</button><button class="danger" id="del">Löschen</button></div></div>
+  <div class="card"><h2>Verwalten</h2><div class="list">
+    <button class="sec" id="mTypes">Bauteilliste bearbeiten <span class="muted">(${S.types.length})</span></button>
+    <button class="sec" id="mRooms">Räume / Bezeichnungen <span class="muted">(${S.rooms.length})</span></button>
+    <button class="sec" id="mTpl">Vorlagen <span class="muted">(${S.templates.length})</span></button></div></div>
+  <div class="card"><h2>App-Version</h2><div class="grid2" style="margin-top:0"><span>Installiert: <b>${APP_VERSION}</b></span><button class="sec" id="chkUpd">Nach Update suchen</button></div>
+    <p class="muted">Deine Verteiler, Bauteile und Vorlagen bleiben beim Update erhalten.</p></div>
+  <p class="muted" style="text-align:center">Daten liegen lokal im Browser dieses Geräts – regelmäßig unter „Export“ sichern.</p>`;
+  el.querySelector('#pn').onchange=e=>{ p.name=e.target.value.trim()||p.name; save(); refreshProjSel(); };
+  el.querySelector('#sch').onchange=e=>{ p.scheme=e.target.value; save(); };
+  el.querySelector('#rest').onchange=e=>{ p.showRest=e.target.checked; save(); };
+  el.querySelector('#fs').oninput=e=>{ S.settings.fontScale=+e.target.value; e.target.parentNode.firstChild.textContent=`Schriftgröße: ${e.target.value} %`; save(); };
+  el.querySelector('#dup').onclick=()=>{ const c=clone(p); c.id=uid(); c.name+=' (Kopie)'; c.rows.forEach(r=>{r.id=uid(); r.items.forEach(i=>i.uid=uid());}); S.projects.push(c); S.cur=c.id; save(); renderAll(); toast('Dupliziert'); };
+  el.querySelector('#del').onclick=()=>{ if(!confirm(`Verteiler „${p.name}“ endgültig löschen?`)) return; S.projects=S.projects.filter(x=>x.id!==p.id); if(!S.projects.length) S.projects.push(newProject('Verteiler 1')); S.cur=S.projects[0].id; save(); renderAll(); };
+  el.querySelector('#chkUpd').onclick=()=>checkUpdate(true);
+  el.querySelector('#mTypes').onclick=dlgTypes; el.querySelector('#mRooms').onclick=dlgRooms; el.querySelector('#mTpl').onclick=dlgTemplates;
+}
+
+/* ============================ Navigation ============================ */
+function renderAll(){ refreshProjSel(); refreshRooms(); renderTab(); }
+function renderTab(){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.id==='tab-'+tab));
+  document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.toggle('on',b.dataset.tab===tab));
+  ({edit:renderEdit,prev:renderPrev,exp:renderExp,more:renderMore})[tab]();
+}
+document.querySelectorAll('nav.tabs button').forEach(b=>b.onclick=()=>{ tab=b.dataset.tab; renderTab(); window.scrollTo(0,0); });
+
+/* ============================ Start + Update-Prüfung ============================ */
+const APP_VERSION = '1.0.0';   // bei jeder neuen Version hier UND in version.json hochzählen
+load(); renderAll();
+
+const updBanner=document.getElementById('updBanner'), updText=document.getElementById('updText'), updBtn=document.getElementById('updBtn');
+let newVersion=null;
+async function checkUpdate(manual){
+  try{
+    const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'}); if(!r.ok) throw 0;
+    const v=(await r.json()).version;
+    if(v && v!==APP_VERSION){ newVersion=v; updText.textContent=`Neue Version ${v} verfügbar (installiert: ${APP_VERSION}).`; updBanner.classList.add('on'); if(manual) toast('Neue Version gefunden'); return 'new'; }
+    if(manual) toast('Du hast die aktuelle Version ('+APP_VERSION+')');
+    return 'ok';
+  }catch(e){ if(manual) toast('Keine Verbindung – Prüfung nicht möglich'); return 'offline'; }
+}
+async function applyUpdate(){
+  updBtn.disabled=true; updBtn.textContent='Aktualisiere …';
+  try{
+    if('serviceWorker' in navigator){ const regs=await navigator.serviceWorker.getRegistrations(); await Promise.all(regs.map(r=>r.unregister())); }
+    if(window.caches){ const ks=await caches.keys(); await Promise.all(ks.map(k=>caches.delete(k))); }
+  }catch(e){}
+  location.reload();   // Projekte/Einstellungen (localStorage) bleiben erhalten
+}
+updBtn.onclick=applyUpdate;
+document.getElementById('updLater').onclick=()=>updBanner.classList.remove('on');
+if('serviceWorker' in navigator && location.protocol.startsWith('http')){
+  navigator.serviceWorker.register('sw.js?v='+APP_VERSION).catch(()=>{});
+}
+checkUpdate(false);
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') checkUpdate(false); });
+window.__test={S:()=>S,makePdfBlob,makePngFiles,compute,drawPart,splitRow};
+</script>
+</body>
+</html>
