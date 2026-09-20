@@ -144,24 +144,26 @@ function toast(t){ const e=document.getElementById('toast'); e.textContent=t; e.
 
 /* ============================ Nummerierung ============================ */
 function compute(p){
-  const res = {}; const groups = {};
-  let fi=0, k=0, curFi=null, curPre='F'; const cnt = {};
+  const res = {}; const groups = {}; const fiItems=[];
+  let fi=0, k=0, curPre='F'; const cnt = {};
   for(const r of p.rows) for(const it of r.items){
     let id='';
     if(it.kind==='fi'){
-      fi++; k=0; curFi=it.uid; curPre=it.prefix||'F'; groups[curFi]={first:null,last:null};
-      id = curPre+fi;
+      fi = it.fiNo ? +it.fiNo : fi+1; k=0; curPre=it.prefix||'F';
+      id = curPre+fi; fiItems.push({it,no:fi});
     }else if(it.kind==='fuse'){
-      k++;
+      if(it.grp && +it.grp!==fi){ fi=+it.grp; k=0; }      // Sicherung einer anderen FI-Gruppe zugeordnet
+      k = it.num ? +it.num : k+1;                          // Startnummer manuell oder fortlaufend
       id = p.scheme==='pre' ? `${fi}${it.prefix||'F'}${k}` : `${curPre}${fi}.${k}`;
-      if(curFi){ const g=groups[curFi]; if(!g.first) g.first=id; g.last=id; }
+      const g = groups[fi] || (groups[fi]={min:1e9,max:-1});
+      if(k<g.min){ g.min=k; g.minId=id; } if(k>g.max){ g.max=k; g.maxId=id; }
     }else if(it.kind==='device'){
       if(it.prefix){ cnt[it.prefix]=(cnt[it.prefix]||0)+1; id = it.prefix+cnt[it.prefix]; }
     }
     if(it.idOv) id = it.idOv;
     res[it.uid] = {id};
   }
-  for(const u in groups){ const g=groups[u]; res[u].range = g.first ? (g.first===g.last ? g.first : `${g.first} - ${g.last}`) : ''; }
+  fiItems.forEach(({it,no})=>{ const g=groups[no]; res[it.uid].range = g ? (g.min===g.max ? g.minId : `${g.minId} - ${g.maxId}`) : ''; });
   return res;
 }
 const rowUsed = r => r.items.reduce((a,i)=>a+Number(i.te||0),0);
@@ -277,6 +279,10 @@ function renderEdit(){
         <input type="number" inputmode="numeric" min="1" max="60" value="1" data-f="addqty" aria-label="Anzahl">
         <button data-a="add">+ Hinzufügen</button>
       </div>
+      <div class="addbar" style="margin-top:4px"><span class="muted">Nummerierung des ersten neuen Bauteils:</span>
+        <select data-f="addgrp" style="min-width:0;flex:none"><option value="">FI/Gruppe: auto</option>${Array.from({length:12},(_,i)=>`<option value="${i+1}">FI/Gruppe F${i+1}</option>`).join('')}</select>
+        <select data-f="addnum" style="min-width:0;flex:none"><option value="">Nr.: fortlaufend</option>${Array.from({length:40},(_,i)=>`<option value="${i+1}">Nr. ${i+1}</option>`).join('')}</select>
+      </div>
       <div class="addbar">
         <button class="sec sm" data-a="figroup">FI + Sicherungen</button>
         <button class="sec sm" data-a="free">Freies Bauteil</button>
@@ -303,13 +309,16 @@ function itemHtml(it,ii,r,comp){
     <div class="ihead"><span class="badge">${esc(info.id||'–')}</span><span class="tname">${esc(it.name)} · ${fmt(it.te)} TE</span>
       <button class="sec sm" data-a="iup">↑</button><button class="sec sm" data-a="idn">↓</button><button class="sec sm" data-a="idup">⧉</button><button class="danger sm" data-a="idel">✕</button></div>
     ${body}
-    <details class="more"><summary>Weitere Optionen</summary><div class="grid2">
+    <details class="more" ${(ii===0||it.fiNo||it.grp||it.num)?'open':''}><summary>Nummerierung &amp; Optionen</summary><div class="grid2">
+      ${it.kind==='fi'?`<label class="f">FI-Nummer${numSel('fiNo',it.fiNo,12,'automatisch','F')}</label>`:''}
+      ${it.kind==='fuse'?`<label class="f">Zu FI-Gruppe${numSel('grp',it.grp,12,'wie zuvor','F')}</label><label class="f">Startnummer hier${numSel('num',it.num,40,'fortlaufend','')}</label>`:''}
       <label class="f">Nummer manuell<input data-d="idOv" value="${esc(it.idOv)}" placeholder="${esc(info.id)}" style="width:110px"></label>
       <label class="f">Breite (TE)<input type="number" step="0.5" inputmode="decimal" data-d="te" value="${it.te}" style="width:90px"></label>
       ${it.kind==='fi'?`<label class="f">Sicherungsbereich zeigen<input type="checkbox" data-d="autoRange" ${it.autoRange?'checked':''}></label>`:''}
     </div></details></div>`;
 }
 
+const numSel = (d, val, max, labelAuto, pre) => `<select data-d="${d}"><option value="">${labelAuto}</option>${Array.from({length:max},(_,i)=>`<option value="${i+1}" ${+val===i+1?'selected':''}>${pre}${i+1}</option>`).join('')}</select>`;
 function findItem(u){ const p=P(); for(const r of p.rows){ const i=r.items.findIndex(x=>x.uid===u); if(i>=0) return {r,i,it:r.items[i]}; } return null; }
 function addRoomIfNew(v){ v=(v||'').trim(); if(v && !S.rooms.some(x=>x.toLowerCase()===v.toLowerCase()) && v.length<=30){ S.rooms.push(v); refreshRooms(); } }
 
@@ -329,6 +338,7 @@ document.getElementById('tab-edit').addEventListener('change',e=>{
     if(t.dataset.l!==undefined){ addRoomIfNew(t.value); }
     else if(t.dataset.d==='idOv'){ f.it.idOv=t.value.trim(); save(); renderEdit(); }
     else if(t.dataset.d==='te'){ f.it.te=Math.max(0.5,parseFloat(String(t.value).replace(',','.'))||1); save(); renderEdit(); }
+    else if(['fiNo','grp','num'].includes(t.dataset.d)){ const v=parseInt(t.value)||0; if(v) f.it[t.dataset.d]=v; else delete f.it[t.dataset.d]; save(); renderEdit(); }
     else if(t.dataset.d==='autoRange'){ f.it.autoRange=t.checked; save(); renderEdit(); }
     save(); }
 });
@@ -342,7 +352,8 @@ document.getElementById('tab-edit').addEventListener('click',e=>{
   else if(a==='rowdn'&&ri<p.rows.length-1){ [p.rows[ri+1],p.rows[ri]]=[p.rows[ri],p.rows[ri+1]]; }
   else if(a==='add'){
     const t=typeById(rowEl.querySelector('[data-f=addtype]').value), q=Math.max(1,Math.min(60,+rowEl.querySelector('[data-f=addqty]').value||1));
-    for(let i=0;i<q;i++) r.items.push(makeItem(t));
+    const ag=+rowEl.querySelector('[data-f=addgrp]').value||0, an=+rowEl.querySelector('[data-f=addnum]').value||0;
+    for(let i=0;i<q;i++){ const it=makeItem(t); if(i===0){ if(t.kind==='fi'&&ag) it.fiNo=ag; if(t.kind==='fuse'){ if(ag) it.grp=ag; if(an) it.num=an; } } r.items.push(it); }
   }
   else if(a==='figroup'){ dlgFiGroup(r); return; }
   else if(a==='free'){ dlgFree(r); return; }
@@ -352,7 +363,7 @@ document.getElementById('tab-edit').addEventListener('click',e=>{
   else if(itEl){
     const f=findItem(itEl.dataset.uid); if(!f) return;
     if(a==='idel'){ f.r.items.splice(f.i,1); }
-    else if(a==='idup'){ const c=clone(f.it); c.uid=uid(); c.lines=['','','']; if(c.kind==='device') c.lines[0]=f.it.lines[0]; c.idOv=''; f.r.items.splice(f.i+1,0,c); }
+    else if(a==='idup'){ const c=clone(f.it); c.uid=uid(); c.lines=['','','']; if(c.kind==='device') c.lines[0]=f.it.lines[0]; c.idOv=''; delete c.fiNo; delete c.grp; delete c.num; f.r.items.splice(f.i+1,0,c); }
     else if(a==='iup'){ if(f.i>0){ [f.r.items[f.i-1],f.r.items[f.i]]=[f.r.items[f.i],f.r.items[f.i-1]]; } else { const rj=p.rows.indexOf(f.r); if(rj>0){ f.r.items.splice(f.i,1); p.rows[rj-1].items.push(f.it); } } }
     else if(a==='idn'){ if(f.i<f.r.items.length-1){ [f.r.items[f.i+1],f.r.items[f.i]]=[f.r.items[f.i],f.r.items[f.i+1]]; } else { const rj=p.rows.indexOf(f.r); if(rj<p.rows.length-1){ f.r.items.splice(f.i,1); p.rows[rj+1].items.unshift(f.it); } } }
   }
@@ -361,7 +372,7 @@ document.getElementById('tab-edit').addEventListener('click',e=>{
 
 /* ---- Vorlagen ---- */
 function insertTemplate(r, t){
-  const items = clone(t.items).map(i=>{ i.uid=uid(); if(i.kind==='fuse'){ i.lines=['','','']; } i.idOv=''; return i; });
+  const items = clone(t.items).map(i=>{ i.uid=uid(); if(i.kind==='fuse'){ i.lines=['','','']; } i.idOv=''; delete i.fiNo; delete i.grp; delete i.num; return i; });
   r.items.push(...items);
 }
 function dlgSaveTpl(kind, r, items){
@@ -369,7 +380,7 @@ function dlgSaveTpl(kind, r, items){
     <label class="f">Name der Vorlage<input id="tplName" value="${esc(kind==='row'?r.name:'FI-Gruppe')}"></label>
     <div class="dlgbtn"><button class="sec" data-close>Abbrechen</button><button id="ok">Speichern</button></div>`,
   d=>{ d.querySelector('#ok').onclick=()=>{ const n=d.querySelector('#tplName').value.trim()||'Vorlage';
-      S.templates.push({id:uid(),name:n,kind,te:r.te,items:clone(items).map(i=>{ if(i.kind==='fuse') i.lines=['','','']; i.idOv=''; return i; })});
+      S.templates.push({id:uid(),name:n,kind,te:r.te,items:clone(items).map(i=>{ if(i.kind==='fuse') i.lines=['','','']; i.idOv=''; delete i.fiNo; delete i.grp; delete i.num; return i; })});
       save(); closeDlg(); renderEdit(); toast('Vorlage gespeichert'); }; });
 }
 function dlgRowFromTpl(){
@@ -380,11 +391,12 @@ function dlgRowFromTpl(){
 }
 function dlgFiGroup(r){
   openDlg(`<h3>FI + Sicherungen</h3><div class="grid2"><label class="f">Anzahl Sicherungen<input id="n" type="number" min="0" max="60" value="8" inputmode="numeric"></label>
-    <label class="f">Nennwerte FI<input id="det" value="${esc(typeById('fi')?.detail||'40/0,03A')}"></label></div>
+    <label class="f">Nennwerte FI<input id="det" value="${esc(typeById('fi')?.detail||'40/0,03A')}"></label>
+    <label class="f">FI-Nummer${numSel('fino',0,12,'automatisch (nächste)','F')}</label></div>
     <div class="dlgbtn"><button class="sec" data-close>Abbrechen</button><button id="ok">Einfügen</button></div>`,
   d=>{ d.querySelector('#ok').onclick=()=>{ const n=Math.max(0,Math.min(60,+d.querySelector('#n').value||0));
       const fiT=S.types.find(t=>t.kind==='fi')||DEFAULT_TYPES[1], fuT=typeById('ls1')||S.types.find(t=>t.kind==='fuse')||DEFAULT_TYPES[0];
-      const fi=makeItem(fiT); fi.detail=d.querySelector('#det').value; r.items.push(fi);
+      const fi=makeItem(fiT); fi.detail=d.querySelector('#det').value; const fn=+d.querySelector('[data-d=fino]').value||0; if(fn) fi.fiNo=fn; r.items.push(fi);
       for(let i=0;i<n;i++) r.items.push(makeItem(fuT)); save(); closeDlg(); renderEdit(); }; });
 }
 function dlgFree(r){
@@ -661,7 +673,7 @@ function renderTab(){
 document.querySelectorAll('nav.tabs button').forEach(b=>b.onclick=()=>{ tab=b.dataset.tab; renderTab(); window.scrollTo(0,0); });
 
 /* ============================ Start + Update-Prüfung ============================ */
-const APP_VERSION = '1.0.0';   // bei jeder neuen Version hier UND in version.json hochzählen
+const APP_VERSION = '1.1.0';   // bei jeder neuen Version hier UND in version.json hochzählen
 load(); renderAll();
 
 const updBanner=document.getElementById('updBanner'), updText=document.getElementById('updText'), updBtn=document.getElementById('updBtn');
