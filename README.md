@@ -11,6 +11,7 @@ Web-App (PWA) zum Erstellen von Beschriftungsstreifen für Elektro-Verteiler dir
 - Vorlagen für wiederkehrende Reihen / FI-Gruppen
 - **PDF-Export** in Originalmaßen: 1 TE = 17,55 mm, Feldhöhe 21,5 mm, mit Schnittmarken (A4 quer/hoch, A3 quer)
 - **Geräte-Export** (Brother P-touch): PNG je Reihe, 18 mm hoch, wählbare Auflösung, „Teilen“ in die Drucker-App
+- **Foto → Reihen:** Verteilerfoto hochladen, Reihen und Bauteile (mit TE-Breiten) werden per Claude-API vorgeschlagen; benötigt eigenen Anthropic-API-Schlüssel, der nur lokal im Browser gespeichert wird. Das Ergebnis muss geprüft werden.
 - Datensicherung als JSON (Verteiler, Bauteilliste, Räume, Vorlagen) mit Zusammenführen beim Einlesen
 - Update-Anzeige: Hinweis auf neue Version mit Bestätigung, manuelle Prüfung unter „Mehr“
 
