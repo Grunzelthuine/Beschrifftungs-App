@@ -455,21 +455,21 @@ function dlgTemplates(){
 
 
 /* ============================ Foto-Erkennung (Claude-API) ============================ */
-function photoPrompt(){
+function photoPrompt(maxTE){
   const list = S.types.map(t=>`- ${t.id}: ${t.name} (${fmt(t.te)} TE, Art: ${t.kind})`).join('\n');
-  return `Das Foto zeigt einen geöffneten Elektro-Verteiler (Unterverteiler, Hutschienen-Reihen). Erfasse die Reihen von OBEN nach UNTEN und in jeder Reihe die Bauteile von LINKS nach RECHTS.
-Maße: 1 Teilungseinheit (TE) = Breite eines normalen einpoligen Sicherungsautomaten (17,5 mm). Schätze jede Breite relativ dazu.
+  return `Das Foto zeigt einen Elektro-Verteiler (Schrank mit Hutschienen). Der Schrank besteht aus einem oder mehreren FELDERN, die nebeneinander stehen (jedes Feld hat einen eigenen Rahmen/eine eigene Abdeckung, oft durch senkrechte Stege oder Trennungen erkennbar). Jedes Feld enthält mehrere Hutschienen-REIHEN übereinander. Eine Reihe in einem Feld ist höchstens ${maxTE} TE breit.
+WICHTIG: Erfasse zuerst die einzelnen FELDER (von links nach rechts) und darin die Reihen (von oben nach unten), und in jeder Reihe die Bauteile von links nach rechts. Eine Reihe darf NIE über ein Feld hinausgehen: Wenn nebeneinander mehr als ${maxTE} TE sitzen, gehört der Rest in das nächste Feld und ist dort eine eigene Reihe. Fasse Reihen aus verschiedenen Feldern niemals zu einer langen Reihe zusammen.
+Maße: 1 Teilungseinheit (TE) = Breite eines normalen einpoligen Sicherungsautomaten. Schätze jede Breite relativ dazu (Gesamtsumme je Reihe ≤ ${maxTE}).
 Bekannte Bauteiltypen (verwende die id):
 ${list}
 Regeln:
-- Jeder einzelne Sicherungsautomat/LS-Schalter ist ein eigenes Element (Typ "ls1"), auch wenn viele nebeneinander sitzen. Mehrpolige Automaten als Typ "ls3" (3 TE) bzw. mit passender Breite.
-- FI/RCD (Fehlerstromschutzschalter, meist breit mit Prüftaste) als Typ "fi" (4 TE).
+- Jeder einzelne Sicherungsautomat/LS-Schalter ist ein eigenes Element (Typ "ls1", 1 TE), auch wenn viele nebeneinander sitzen. Zähle sie einzeln und genau. Mehrpolige Automaten als "ls3" (3 TE) bzw. mit passender Breite.
+- FI/RCD (Fehlerstromschutzschalter, breit, mit Prüftaste) als Typ "fi".
 - Ist ein Gerät keinem bekannten Typ zuzuordnen (z. B. Dimmaktor, Netzteil, Überspannungsschutz), nimm "type": null, gib "name" (kurz, deutsch) und die geschätzte Breite in "te" an.
-- Freie Hutschienen-Plätze und Blindabdeckungen als "type": "gap" mit ihrer Breite in TE.
-- "te" der Reihe = geschätzte Gesamtbreite der Hutschiene in TE (übliche Werte: 12, 18, 24, 36).
+- Freie Plätze und Blindabdeckungen als "type": "gap" mit ihrer Breite in TE (sodass die Reihe ${maxTE} TE ergibt, wenn sie voll belegt ist).
 - Lies KEINE Nummern oder Beschriftungstexte, nur Bauteile und Breiten.
 Antworte AUSSCHLIESSLICH mit JSON in dieser Form, ohne weiteren Text:
-{"rows":[{"name":"Reihe 1","te":24,"items":[{"type":"fi","te":4},{"type":"ls1","te":1},{"type":null,"name":"Dimmaktor","te":4},{"type":"gap","te":2}]}],"notes":"Hinweise zu unsicheren Stellen"}`;
+{"felder":[{"name":"Feld 1","rows":[{"items":[{"type":"fi","te":4},{"type":"ls1","te":1},{"type":null,"name":"Dimmaktor","te":4},{"type":"gap","te":3}]}]}],"notes":"Hinweise zu unsicheren Stellen"}`;
 }
 function downscale(file, maxPx=1800){
   return new Promise((res,rej)=>{
@@ -480,31 +480,41 @@ function downscale(file, maxPx=1800){
     img.src=url;
   });
 }
-async function askClaude(dataUrl, key, model){
+async function askClaude(dataUrl, key, model, maxTE){
   const r = await fetch('https://api.anthropic.com/v1/messages',{method:'POST',
     headers:{'content-type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
     body:JSON.stringify({model,max_tokens:4000,messages:[{role:'user',content:[
       {type:'image',source:{type:'base64',media_type:'image/jpeg',data:dataUrl.split(',')[1]}},
-      {type:'text',text:photoPrompt()}]}]})});
+      {type:'text',text:photoPrompt(maxTE)}]}]})});
   if(!r.ok){ let m=''; try{ m=(await r.json()).error?.message||''; }catch(e){}
     throw new Error(r.status===401?'API-Schlüssel ungültig (401)':r.status===429?'Zu viele Anfragen bzw. Limit erreicht (429)':`Fehler ${r.status}${m?': '+m:''}`); }
   const j=await r.json(); const txt=(j.content||[]).map(c=>c.text||'').join('');
   const m=txt.match(/\{[\s\S]*\}/); if(!m) throw new Error('Antwort nicht lesbar');
-  const data=JSON.parse(m[0]); if(!Array.isArray(data.rows)) throw new Error('Keine Reihen erkannt');
+  const data=JSON.parse(m[0]); if(!Array.isArray(data.felder)&&!Array.isArray(data.rows)) throw new Error('Keine Felder erkannt');
   return data;
 }
-function rowsFromPhoto(data){
-  return data.rows.map((rw,i)=>{
-    const items=[]; (rw.items||[]).forEach(x=>{
-      const te=Math.max(0.5,Number(x.te)||1);
-      let t = x.type==='gap' ? (typeById('gap')||DEFAULT_TYPES[7]) : (x.type ? typeById(x.type) : null);
-      if(x.type==='gap'){ const it=makeItem(t); it.te=te; items.push(it); return; }
-      if(t){ const it=makeItem(t); if(t.kind==='device'||Math.abs(t.te-te)>1) it.te = t.kind==='fuse'||t.kind==='fi' ? t.te : te; items.push(it); return; }
-      const it=makeItem({id:'custom',name:String(x.name||'Gerät'),te,kind:'device',prefix:''}); items.push(it);
+function rowsFromPhoto(data, maxTE=12){
+  const felder = Array.isArray(data.felder) ? data.felder : [{name:'Feld 1',rows:data.rows}];
+  const mkItem = x=>{
+    const te=Math.max(0.5,Number(x.te)||1);
+    if(x.type==='gap'){ const it=makeItem(typeById('gap')||DEFAULT_TYPES[7]); it.te=te; return it; }
+    const t = x.type ? typeById(x.type) : null;
+    if(t){ const it=makeItem(t); if(t.kind==='device') it.te=te; return it; }
+    return makeItem({id:'custom',name:String(x.name||'Gerät'),te,kind:'device',prefix:''});
+  };
+  const out=[]; let fNo=0;
+  felder.forEach(f=>{
+    fNo++; let rNo=0; const fname=String(f.name||('Feld '+fNo));
+    (f.rows||[]).forEach(rw=>{
+      // Sicherheitsnetz: eine Reihe > maxTE gehört zu mehreren Feldern -> in Stücke von max. maxTE teilen
+      const chunks=[[]]; let sum=0;
+      (rw.items||[]).map(mkItem).forEach(it=>{ if(sum+it.te>maxTE+1e-6 && chunks[chunks.length-1].length){ chunks.push([]); sum=0; } chunks[chunks.length-1].push(it); sum+=it.te; });
+      chunks.forEach((items,ci)=>{ rNo++;
+        const nm = chunks.length>1 ? `${fname}${ci?' (Folge '+ci+')':''} · Reihe ${rNo}` : `${fname} · Reihe ${rNo}`;
+        out.push({id:uid(),name:nm,te:maxTE,items,feld:fname}); });
     });
-    const used=items.reduce((a,b)=>a+b.te,0);
-    return {id:uid(),name:String(rw.name||'Reihe '+(i+1)),te:Math.max(Math.ceil(used),Number(rw.te)||0)||12,items};
   });
+  return out;
 }
 function summarize(items){
   const out=[]; items.forEach(it=>{ const k=it.name+'|'+it.te; const l=out[out.length-1]; if(l&&l.k===k) l.n++; else out.push({k,n:1,name:it.name,te:it.te}); });
@@ -516,6 +526,7 @@ function dlgPhoto(){
     <p class="muted">Foto möglichst gerade von vorn, Abdeckung offen, alle Reihen im Bild. Das Foto wird zur Auswertung an die Anthropic-API gesendet; die Erkennung ist ein Vorschlag und muss geprüft werden.</p>
     <label class="f">API-Schlüssel (nur auf diesem Gerät gespeichert)<input id="key" type="password" autocomplete="off" value="${esc(s.apiKey||'')}" placeholder="sk-ant-…"></label>
     <label class="f" style="margin-top:6px">Modell<input id="model" value="${esc(s.model||'claude-sonnet-4-5')}"></label>
+    <label class="f" style="margin-top:6px">Max. TE je Reihe (innerhalb eines Feldes)<input id="mte" type="number" min="4" max="48" value="${s.maxTE||12}" inputmode="numeric"></label>
     <label class="f" style="margin-top:6px">Foto<input id="file" type="file" accept="image/*"></label>
     <img id="pv" alt="" style="display:none;max-width:100%;margin-top:8px;border-radius:8px">
     <div id="st" class="muted" style="margin-top:8px"></div><div id="res"></div>
@@ -531,9 +542,10 @@ function dlgPhoto(){
       s.apiKey=key; s.model=model; save();
       go.disabled=true; st.textContent='Foto wird ausgewertet … (kann 10–30 s dauern)';
       try{
-        const data=await askClaude(dataUrl,key,model); result=rowsFromPhoto(data);
+        const maxTE=Math.max(4,Math.min(48,+d.querySelector('#mte').value||12)); s.maxTE=maxTE; save();
+        const data=await askClaude(dataUrl,key,model,maxTE); result=rowsFromPhoto(data,maxTE);
         st.textContent='';
-        d.querySelector('#res').innerHTML=`<h3 style="margin-top:12px">Vorschlag</h3>${result.map(r=>`<div class="card" style="margin-bottom:6px"><b>${esc(r.name)}</b> · ${fmt(r.te)} TE<div class="muted">${esc(summarize(r.items))||'leer'}</div></div>`).join('')}
+        d.querySelector('#res').innerHTML=`<h3 style="margin-top:12px">Vorschlag</h3>${result.map(r=>`<div class="card" style="margin-bottom:6px"><b>${esc(r.name)}</b> · ${fmt(r.items.reduce((a,b)=>a+b.te,0))} von ${fmt(r.te)} TE<div class="muted">${esc(summarize(r.items))||'leer'}</div></div>`).join('')||'<p class="muted">Nichts erkannt.</p>'}
           ${data.notes?`<p class="muted">Hinweis: ${esc(data.notes)}</p>`:''}
           <div class="dlgbtn"><button class="sec" id="toCur">Zum aktuellen Verteiler</button><button id="toNew">Als neuer Verteiler</button></div>`;
         d.querySelector('#toCur').onclick=()=>{ P().rows.push(...result); save(); closeDlg(); tab='edit'; renderAll(); toast('Reihen übernommen – bitte prüfen'); };
@@ -765,7 +777,7 @@ function renderTab(){
 document.querySelectorAll('nav.tabs button').forEach(b=>b.onclick=()=>{ tab=b.dataset.tab; renderTab(); window.scrollTo(0,0); });
 
 /* ============================ Start + Update-Prüfung ============================ */
-const APP_VERSION = '1.2.0';   // bei jeder neuen Version hier UND in version.json hochzählen
+const APP_VERSION = '1.3.0';   // bei jeder neuen Version hier UND in version.json hochzählen
 load(); renderAll();
 
 const updBanner=document.getElementById('updBanner'), updText=document.getElementById('updText'), updBtn=document.getElementById('updBtn');
